@@ -1,125 +1,182 @@
-import { StyleSheet, Text,Pressable, TouchableOpacity, View, TextStyle, TouchableHighlight } from "react-native";
+import { StyleSheet, Text,Pressable, TouchableOpacity, View, TextStyle, TouchableHighlight, useWindowDimensions } from "react-native";
+import CalcButton from "./components/CalcButton";
+import { useState } from "react";
+import MemoryButton from "./components/MemoryButton";
 
+
+const maxResultDigits = 5;    // after its done, change to 20 or 19? 
 
 export default function Calc() {
-const onButtonPress = (title:string) => {
-    console.log(title);
-};
+    const [result, setResult] = useState("0");
+    const {width, height} = useWindowDimensions();
 
-    return( 
-    <View style={styles.calcContainer}>
-        <Text style={styles.title}>Калькулятор</Text>
-        <Text style={styles.expression}>22 + 33 =</Text>
-        <Text style={styles.result}>55</Text>
+    const onOperationPress = (title:string, data?:string) => {
+        switch(data) {
+            case "backspace": if(result.length > 1) {
+                setResult(result.substring(0, result.length -1 ));
+            } else  {
+                setResult("0"); 
+            } break;
+            case "clear": setResult("0"); break;
+            case "inverse": setResult( (1 / Number(result)).toString() ); break;
+        }
+    };
 
-        <View style={styles.memoryButtonRow}>
-            <MemoryButton title="MC" action={onButtonPress}/>
-            <MemoryButton title="MR" action={onButtonPress}/>
-            <MemoryButton title="M+" action={onButtonPress}/>
-            <MemoryButton title={"M\u2212"} action={onButtonPress}/>
-            <MemoryButton title="MS" action={onButtonPress}/>
-            <MemoryButton title={"M\u02C7"} action={onButtonPress}/>
-        </View>
+    const onDigitPress = (title:string) => {
+        // Проверяем кол-во цифр в резалте, если > чем maxDig то return.
+        const digitCount = result.replace(/[^0-9]/g, "").length;
+        if (digitCount >= maxResultDigits) {
+            return;
+        }
+        if(result == "0") {
+            setResult(title);
+        } else {
+            setResult(result + title);
+        }  
+    };
 
+    const onDotPress = (title:string) => {
+        if(!result.includes(".")) {
+            setResult(result + ".");
+        }
+    };
 
-        <View style={styles.calcButtonRow}>
-            <CalcButton title="%"                              action={onButtonPress}/>
-            <CalcButton title="CE" textStyle={{ fontSize: 16}} action={onButtonPress}/>
-            <CalcButton title="C"  textStyle={{ fontSize: 16}} action={onButtonPress}/>
-            <CalcButton title={"\u232B"} action={onButtonPress}/>
-        </View>
+    const onPmPress = (title:string) => {
+        if(result.startsWith("-")) {
+            setResult(result.substring(1));
+        }
+        else {
+            setResult("-" + result);
+        }
+    };
 
-        <View style={styles.calcButtonRow}>
-            <CalcButton title={"\u215F\u{1D465}"} action={onButtonPress}/>
-            <CalcButton title={"\u{1D465}\u00B2"} action={onButtonPress}/>
-            <CalcButton title={"\u00B2\u221A\u{1D465}"} action={onButtonPress}/>
-            <CalcButton title={"\u00f7"} textStyle={{ fontSize: 26}} action={onButtonPress}/>
-            {/* <CalcButton title={"\u2797"} action={onButtonPress}/> */}
-        </View>
+    const portraitView = () => {
+        return( 
+            <View style={styles.calcContainer}>
+                <Text style={styles.title}>Калькулятор</Text>
+                <Text style={styles.expression}>22 + 33 =</Text>
+                <Text style={[styles.result, {fontSize: result.length < 20 ? styles.result.fontSize : styles.result.fontSize * 19 / result.length}]}>{result}</Text>
 
-        <View style={styles.calcButtonRow}>
-            <CalcButton title="7" action={onButtonPress}/>
-            <CalcButton title="8" action={onButtonPress}/>
-            <CalcButton title="9" action={onButtonPress}/>
-            <CalcButton title={"\u2715"} action={onButtonPress}/>
-        </View>
+                <View style={styles.memoryButtonRow}>
+                    <MemoryButton title="MC" action={onOperationPress}/>
+                    <MemoryButton title="MR" action={onOperationPress}/>
+                    <MemoryButton title="M+" action={onOperationPress}/>
+                    <MemoryButton title={"M\u2212"} action={onOperationPress}/>
+                    <MemoryButton title="MS" action={onOperationPress}/>
+                    <MemoryButton title={"M\u02C7"} action={onOperationPress}/>
+                </View>
 
-        <View style={styles.calcButtonRow}>
-            <CalcButton title="4" action={onButtonPress}/>
-            <CalcButton title="5" action={onButtonPress}/>
-            <CalcButton title="6" action={onButtonPress}/>
-            <CalcButton title={"\uFF0D"} action={onButtonPress}/>
-        </View>
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title="%"                              action={onOperationPress}/>
+                    <CalcButton title="CE" textStyle={{ fontSize: 16}} action={onOperationPress}/>
+                    <CalcButton title="C"  textStyle={{ fontSize: 16}} action={onOperationPress} data="clear"/>
+                    <CalcButton title={"\u232B"}                       action={onOperationPress} data="backspace"/>
+                </View>
 
-        <View style={styles.calcButtonRow}>
-            <CalcButton title="1" action={onButtonPress}/>
-            <CalcButton title="2" action={onButtonPress}/>
-            <CalcButton title="3" action={onButtonPress}/>
-            <CalcButton title={"\uFF0B"} action={onButtonPress}/>
-        </View>
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title={"\u215F\u{1D465}"}       action={onOperationPress} data="inverse" />
+                    <CalcButton title={"\u{1D465}\u00B2"}       action={onOperationPress} data="square"/>
+                    <CalcButton title={"\u00B2\u221A\u{1D465}"} action={onOperationPress} data="sqrt"/>
+                    <CalcButton title={"\u00f7"} textStyle={{ fontSize: 26}} action={onOperationPress}/>
 
-        <View style={styles.calcButtonRow}>
-            <CalcButton title={"\u207A\u2044\u208B"} action={onButtonPress}/>
-            <CalcButton title="0" action={onButtonPress}/>
-            <CalcButton title={"\uFF0E"} action={onButtonPress}/>
-            <CalcButton title={"\uFF1D"} action={onButtonPress}/>
-        </View>
-        
-    </View>)
-    ;
-}
+                </View>
 
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title="7" type="digit" action={onDigitPress}/>
+                    <CalcButton title="8" type="digit" action={onDigitPress}/>
+                    <CalcButton title="9" type="digit" action={onDigitPress}/>
+                    <CalcButton title={"\u2715"} action={onOperationPress}/>
+                </View>
 
-type memoryButtonData = {
-    title: string,
-    type?: string,
-    action: (title:string, type?:string) => any
-}
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title="4" type="digit" action={onDigitPress}/>
+                    <CalcButton title="5" type="digit" action={onDigitPress}/>
+                    <CalcButton title="6" type="digit" action={onDigitPress}/>
+                    <CalcButton title={"\uFF0D"} action={onOperationPress}/>
+                </View>
 
-function MemoryButton({title, type, action}: memoryButtonData){
-    return (
-    <TouchableHighlight 
-        onPress={ () => action(title, type)} 
-        style={styles.memoryButton} 
-        underlayColor="#323232" 
-        activeOpacity={1}
-    >
-         <Text style={styles.memoryButtonText}>{title} </Text>
-    </TouchableHighlight>
-    );
-}
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title="1" type="digit" action={onDigitPress}/>
+                    <CalcButton title="2" type="digit" action={onDigitPress}/>
+                    <CalcButton title="3" type="digit" action={onDigitPress}/>
+                    <CalcButton title={"\uFF0B"}       action={onOperationPress}/>
+                </View>
 
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title={"\u207A\u2044\u208B"} type="digit" action={onPmPress}/>
+                    <CalcButton title="0" type="digit" action={onDigitPress}/>
+                    <CalcButton title={"\uFF0E"} type="digit" action={onDotPress}/>
+                    <CalcButton title={"\uFF1D"} type="equal" action={onOperationPress}/>
+                </View>
+                
+            </View>);
+    };
 
+    const landscapeView = () => {
+        return( 
+            <View style={styles.calcContainer}>
 
-type calcButtonData = {
-    title: string,
-    type?: string,
-    textStyle?: TextStyle,
-    action: (title:string, type?:string) => any
-}
+                <View style={{display: "flex", flexDirection: "row", justifyContent: "center"}}>             
+                    <View style={{flex: 2, display: "flex", flexDirection: "column"}}> 
+                        <Text style={[styles.title, {margin: 0}]}>Калькулятор</Text>
+                        <Text style={styles.expression}>22 + 33 =</Text>
+                    </View>
 
-function CalcButton({title, type, textStyle, action}: calcButtonData) {
-    return <TouchableOpacity onPress={() => action(title, type)} style={styles.calcButton}>
-        <Text style={[styles.calcButtonText, textStyle]}>{title}</Text>
-    </TouchableOpacity>;
+                    <Text style={[styles.result, {flex : 3}]}>{result}</Text>
+                </View>
+
+                <View style={styles.memoryButtonRow}>
+                    <MemoryButton title="MC" action={onOperationPress}/>
+                    <MemoryButton title="MR" action={onOperationPress}/>
+                    <MemoryButton title="M+" action={onOperationPress}/>
+                    <MemoryButton title={"M\u2212"} action={onOperationPress}/>
+                    <MemoryButton title="MS" action={onOperationPress}/>
+                    <MemoryButton title={"M\u02C7"} action={onOperationPress}/>
+                </View>
+
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title="%"              action={onOperationPress}/>
+                    <CalcButton title="7" type="digit" action={onDigitPress}/>
+                    <CalcButton title="8" type="digit" action={onDigitPress}/>
+                    <CalcButton title="9" type="digit" action={onDigitPress}/>
+                    <CalcButton title={"\u00f7"} textStyle={{ fontSize: 26}} action={onOperationPress} data="div"/>
+                    <CalcButton title={"\u232B"} action={onOperationPress} data="backspace"/>                
+                </View>
+
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title={"\u215F\u{1D465}"} action={onOperationPress} data="inverse"/>
+                    <CalcButton title="4" type="digit" action={onDigitPress}/>
+                    <CalcButton title="5" type="digit" action={onDigitPress}/>
+                    <CalcButton title="6" type="digit" action={onDigitPress}/>
+                    <CalcButton title={"\u2715"} action={onOperationPress} data="mul" />
+                    <CalcButton title="C"  textStyle={{ fontSize: 16}} action={onOperationPress} data="clear"/>                  
+                </View>
+
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title={"\u{1D465}\u00B2"} action={onOperationPress} data="square"/>
+                    <CalcButton title="1" type="digit" action={onDigitPress}/>
+                    <CalcButton title="2" type="digit" action={onDigitPress}/>
+                    <CalcButton title="3" type="digit" action={onDigitPress}/>
+                    <CalcButton title={"\uFF0D"} action={onOperationPress} data="sub"/>
+                    <CalcButton title="CE" textStyle={{ fontSize: 16}} action={onOperationPress} data="clearEntry"/>           
+                </View>
+
+                <View style={styles.calcButtonRow}>
+                    <CalcButton title={"\u00B2\u221A\u{1D465}"} action={onOperationPress} data="sqrt"/>
+                    <CalcButton title={"\u207A\u2044\u208B"} type="digit"    action={onPmPress}/>
+                    <CalcButton title="0" type="digit" action={onDigitPress}/>
+                    <CalcButton title={"\uFF0E"}    type="digit"    action={onDotPress}/>
+                    <CalcButton title={"\uFF0B"}    action={onOperationPress} data="add"/>
+                    <CalcButton title={"\uFF1D"}    type="equal"    action={onOperationPress}/>
+                </View>
+                
+            </View>);
+    };
+    return width < height ? portraitView() : landscapeView();
 }
 
 
 const styles = StyleSheet.create({
-    calcButton: {
-        backgroundColor: "#323232",
-        borderRadius: 7,
-        flex: 1,
-        margin: 1,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-
-    },
-    calcButtonText: {
-        color: "#ffffff",
-        fontSize: 18,
-    },
     calcContainer: {
         backgroundColor: "#202020",
         flex: 1,
@@ -136,6 +193,7 @@ const styles = StyleSheet.create({
     expression: {
         color: "#A6A6A6",
         textAlign: "right",
+        margin: 10,
     },
     result: {
         color: "#ffffff",
@@ -152,31 +210,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 3,
 
     },
-
-
-
-    memoryButton: {
-        backgroundColor: "#202020",
-        borderRadius: 7,
-        flex: 1,
-        margin: 1,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-
-        // borderWidth: 1,
-        // borderColor: "black",
-
-    },
-    memoryButtonText: {
-        color: "#ffffff",
-        fontSize: 14,
-    },
     memoryButtonRow: {
         display: "flex",
         justifyContent: "space-between",
         flexDirection: "row",       
         paddingHorizontal: 3, 
-        height: 45,
+        flex: 1,
+        maxHeight: 40,
+        minHeight: 40,
     }
 });
