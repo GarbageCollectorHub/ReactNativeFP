@@ -21,7 +21,7 @@ function App() {
   /* Навигация у мобильных приложениях 
   идея - ведение собственной истории перехода между "страничками"
   */
-  const [page, setPage] = useState("calc");
+  const [page, setPage] = useState("game");
   const [history, setHistory] = useState([] as Array<string>);
 
   const navigate = (href:string) => {   // додавання до исторii поточноiноi сторiнки
