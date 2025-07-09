@@ -8,17 +8,90 @@ const maxResultDigits = 5;    // after its done, change to 20 or 19?
 
 export default function Calc() {
     const [result, setResult] = useState("0");
+    const [expression, setExpression] = useState("");
+    const [firstOperand, setFirstOperand] = useState<string | null>(null);
+    const [secondOperand, setSecondOperand] = useState<string | null>(null);
+    const [operation, setOperation] = useState<string | null>(null);
+    const [isSecondOperand, setIsSecondOperand] = useState(false);  // флаг true - ввод второго операнда
+
     const {width, height} = useWindowDimensions();
+
+
+    const calculate = (a: number, b: number, op: string): number => {
+        switch (op) {
+            case "add": return a + b;
+            case "sub": return a - b;
+            case "mult": return a * b;
+            case "div": return b !== 0 ? a / b : NaN;     //change to Cannot divide by zero ?
+            default: return b;
+        }
+    };
+
+    const operationSymbol = (op: string): string => {
+        switch (op) {
+            case "add": return "+";
+            case "sub": return "−";
+            case "mult": return "×";
+            case "div": return "÷";
+            default: return "";
+        }
+    };
+
 
     const onOperationPress = (title:string, data?:string) => {
         switch(data) {
             case "backspace": if(result.length > 1) {
                 setResult(result.substring(0, result.length -1 ));
-            } else  {
+            } 
+            else  {
                 setResult("0"); 
             } break;
-            case "clear": setResult("0"); break;
+
+            case "clear": 
+                setResult("0"); 
+                setExpression(""); 
+                setFirstOperand(null);
+                setSecondOperand(null); 
+                setIsSecondOperand(false); 
+                setOperation(null); 
+                break;
             case "inverse": setResult( (1 / Number(result)).toString() ); break;
+
+            case "add":
+            case "sub":
+            case "mult":
+            case "div":
+                if(firstOperand !== null && operation && !isSecondOperand) {
+                    const a = parseFloat(firstOperand);
+                    const b = parseFloat(result);
+                    const res = calculate(a, b, operation);
+
+                    setResult(res.toString());
+                    setFirstOperand(res.toString());
+                    setExpression(res + " " + title);
+                } 
+                else {
+                    setFirstOperand(result);
+                    setExpression(result + " " + title);
+                }
+
+                setOperation(data);
+                setIsSecondOperand(true);
+                break;
+            case "equal":
+                if(firstOperand && operation && secondOperand !== null) {
+                    const a = parseFloat(firstOperand);
+                    const b = parseFloat(secondOperand);
+                    const res = calculate(a, b, operation);
+
+                    setResult(res.toString());
+                    setExpression(firstOperand + " " + operationSymbol(operation) + " " + secondOperand + " =");
+                    setFirstOperand(null);
+                    setSecondOperand(null);
+                    setOperation(null);
+                    setIsSecondOperand(false);
+                }
+                break;
         }
     };
 
@@ -28,18 +101,36 @@ export default function Calc() {
         if (digitCount >= maxResultDigits) {
             return;
         }
-        if(result == "0") {
+        if(result === "0" || isSecondOperand) {
             setResult(title);
+            setIsSecondOperand(false);
+            if (operation) {
+                setSecondOperand(title);
+            }
         } else {
-            setResult(result + title);
-        }  
+            const newResult = result + title;
+            setResult(newResult);
+            if (operation) {
+                setSecondOperand(newResult);
+            }
+        } 
+        
+        if (expression.endsWith("=")) {
+            setExpression(title);
+        } else if (isSecondOperand && operation) {
+            setExpression(prev => prev + " " + title);
+        } else {
+            setExpression(prev => prev + title);
+        }
     };
+
 
     const onDotPress = (title:string) => {
         if(!result.includes(".")) {
             setResult(result + ".");
         }
     };
+
 
     const onPmPress = (title:string) => {
         if(result.startsWith("-")) {
@@ -54,7 +145,7 @@ export default function Calc() {
         return( 
             <View style={styles.calcContainer}>
                 <Text style={styles.title}>Калькулятор</Text>
-                <Text style={styles.expression}>22 + 33 =</Text>
+                <Text style={styles.expression}>{expression}</Text>
                 <Text style={[styles.result, {fontSize: result.length < 20 ? styles.result.fontSize : styles.result.fontSize * 19 / result.length}]}>{result}</Text>
 
                 <View style={styles.memoryButtonRow}>
@@ -77,7 +168,7 @@ export default function Calc() {
                     <CalcButton title={"\u215F\u{1D465}"}       action={onOperationPress} data="inverse" />
                     <CalcButton title={"\u{1D465}\u00B2"}       action={onOperationPress} data="square"/>
                     <CalcButton title={"\u00B2\u221A\u{1D465}"} action={onOperationPress} data="sqrt"/>
-                    <CalcButton title={"\u00f7"} textStyle={{ fontSize: 26}} action={onOperationPress}/>
+                    <CalcButton title={"\u00f7"} textStyle={{ fontSize: 25}} action={onOperationPress} data="div"/>
 
                 </View>
 
@@ -85,28 +176,28 @@ export default function Calc() {
                     <CalcButton title="7" type="digit" action={onDigitPress}/>
                     <CalcButton title="8" type="digit" action={onDigitPress}/>
                     <CalcButton title="9" type="digit" action={onDigitPress}/>
-                    <CalcButton title={"\u2715"} action={onOperationPress}/>
+                    <CalcButton title={"\u2715"} action={onOperationPress} data="mult"/>
                 </View>
 
                 <View style={styles.calcButtonRow}>
                     <CalcButton title="4" type="digit" action={onDigitPress}/>
                     <CalcButton title="5" type="digit" action={onDigitPress}/>
                     <CalcButton title="6" type="digit" action={onDigitPress}/>
-                    <CalcButton title={"\uFF0D"} action={onOperationPress}/>
+                    <CalcButton title={"\uFF0D"} action={onOperationPress} data="sub" />
                 </View>
 
                 <View style={styles.calcButtonRow}>
                     <CalcButton title="1" type="digit" action={onDigitPress}/>
                     <CalcButton title="2" type="digit" action={onDigitPress}/>
                     <CalcButton title="3" type="digit" action={onDigitPress}/>
-                    <CalcButton title={"\uFF0B"}       action={onOperationPress}/>
+                    <CalcButton title={"\uFF0B"}       action={onOperationPress} data="add"/>
                 </View>
 
                 <View style={styles.calcButtonRow}>
                     <CalcButton title={"\u207A\u2044\u208B"} type="digit" action={onPmPress}/>
                     <CalcButton title="0" type="digit" action={onDigitPress}/>
                     <CalcButton title={"\uFF0E"} type="digit" action={onDotPress}/>
-                    <CalcButton title={"\uFF1D"} type="equal" action={onOperationPress}/>
+                    <CalcButton title={"\uFF1D"} type="equal" action={onOperationPress} data="equal"/>
                 </View>
                 
             </View>);

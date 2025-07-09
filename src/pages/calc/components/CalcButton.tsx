@@ -9,7 +9,7 @@ type CalcButtonData = {
     action: (title:string, data?:string) => any
 }
 
-export default function CalcButton({title, type, data, action}: CalcButtonData) {
+export default function CalcButton({title, type, data, textStyle, action}: CalcButtonData) {
     return <TouchableOpacity 
         onPress={() => action(title, data)} 
         style={[styles.calcButton, (
@@ -19,7 +19,7 @@ export default function CalcButton({title, type, data, action}: CalcButtonData) 
         )]}>
             <Text style={
                 type=="equal" ? styles.callcEqualText
-                : styles.calcButtonText
+                : [styles.calcButtonText, textStyle]
             }>{title}</Text>
     </TouchableOpacity>;
 }
