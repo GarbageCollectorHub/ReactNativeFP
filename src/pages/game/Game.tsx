@@ -20,12 +20,15 @@ function tileBackground(tileValue: number) {
     : tileValue === 16     ? "#E79B73"
     : tileValue === 32     ? "#E4846E"
     : tileValue === 64     ? "#E26A51"
-    : tileValue === 128    ? "#bbb"
-    : tileValue === 256    ? "#bbb"
-    : tileValue === 512    ? "#bbb"
-    : tileValue === 1024   ? "#bbb"
-    : tileValue === 2048   ? "#bbb"
-    : tileValue === 4096   ? "#bbb"
+    : tileValue === 128    ? "#EDCF72"
+    : tileValue === 256    ? "#EDCC61"
+    : tileValue === 512    ? "#EDC850"
+    : tileValue === 1024   ? "#EDC22E"
+    : tileValue === 2048   ? "#E8B500"
+    : tileValue === 4096   ? "#B784AB"
+    : tileValue === 8192   ? "#A66BA1"
+    : tileValue === 16384  ? "#AA60A6"
+    : tileValue === 32768  ? "#9545A0"
                            : "#bbb";
 }
 
@@ -37,13 +40,13 @@ function tileForeground(tileValue: number) {
     : tileValue === 16     ? "#FBF5F2"
     : tileValue === 32     ? "#FBF5F2"
     : tileValue === 64     ? "#FBF5F2"
-    : tileValue === 128    ? "#444"
-    : tileValue === 256    ? "#444"
-    : tileValue === 512    ? "#444"
-    : tileValue === 1024   ? "#444"
-    : tileValue === 2048   ? "#444"
-    : tileValue === 4096   ? "#444"
-                           : "#444";
+    : tileValue === 128    ? "#FBF5F2"
+    : tileValue === 256    ? "#FBF5F2"
+    : tileValue === 512    ? "#FBF5F2"
+    : tileValue === 1024   ? "#FBF5F2"
+    : tileValue === 2048   ? "#FBF5F2"
+    : tileValue === 4096   ? "#FBF5F2"
+                           : "#FBF5F2";
 }
 
 
@@ -165,8 +168,8 @@ export default function Game() {
                 style={[styles.tile, {
                     backgroundColor: tileBackground(tile),
                     color: tileForeground(tile),
-                    width: width * 0.21,
-                    height: width * 0.21,
+                    width: width * 0.201,
+                    height: width * 0.201,
                     fontSize: tileFontSize(tile),
                     fontWeight: 800,
                     marginLeft: width * 0.022,
@@ -252,6 +255,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     marginHorizontal: "auto",
+    padding: 3,
+    gap: 3,
   },
   tile: {
     borderRadius: 5,
