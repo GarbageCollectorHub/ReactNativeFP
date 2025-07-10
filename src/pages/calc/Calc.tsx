@@ -1,42 +1,43 @@
 import { StyleSheet, Text,Pressable, TouchableOpacity, View, TextStyle, TouchableHighlight, useWindowDimensions } from "react-native";
 import CalcButton from "./components/CalcButton";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import MemoryButton from "./components/MemoryButton";
 
 
-const maxResultDigits = 5;    // after its done, change to 20 or 19? 
+
+const maxResultDigits = 19;
+
+const calculate = (a: number, b: number, op: string): number => {
+    switch (op) {
+        case "add": return a + b;
+        case "sub": return a - b;
+        case "mul": return a * b;
+        case "div": return b !== 0 ? a / b : NaN;     //change to Cannot divide by zero ?
+        default: return b;
+    }
+};
+
+const operationSymbol = (op: string): string => {
+    switch (op) {
+        case "add": return "+";
+        case "sub": return "−";
+        case "mul": return "×";
+        case "div": return "÷";
+        default: return "";
+    }
+};
+
 
 export default function Calc() {
     const [result, setResult] = useState("0");
     const [expression, setExpression] = useState("");
-    const [firstOperand, setFirstOperand] = useState<string | null>(null);
-    const [secondOperand, setSecondOperand] = useState<string | null>(null);
+    const [firstOperand, setFirstOperand] = useState<number | null>(null);
+    const [secondOperand, setSecondOperand] = useState<number | null>(null);
     const [operation, setOperation] = useState<string | null>(null);
     const [isSecondOperand, setIsSecondOperand] = useState(false);  // флаг true - ввод второго операнда
+    const lastOpAndOperandRef = useRef<{ op: string, val: number} | null>(null);
 
     const {width, height} = useWindowDimensions();
-
-
-    const calculate = (a: number, b: number, op: string): number => {
-        switch (op) {
-            case "add": return a + b;
-            case "sub": return a - b;
-            case "mult": return a * b;
-            case "div": return b !== 0 ? a / b : NaN;     //change to Cannot divide by zero ?
-            default: return b;
-        }
-    };
-
-    const operationSymbol = (op: string): string => {
-        switch (op) {
-            case "add": return "+";
-            case "sub": return "−";
-            case "mult": return "×";
-            case "div": return "÷";
-            default: return "";
-        }
-    };
-
 
     const onOperationPress = (title:string, data?:string) => {
         switch(data) {
@@ -54,34 +55,90 @@ export default function Calc() {
                 setSecondOperand(null); 
                 setIsSecondOperand(false); 
                 setOperation(null); 
+                lastOpAndOperandRef.current = null;
+                break;
+            case "clearEntry":
+                setResult("0");
+                setIsSecondOperand(true);
                 break;
             case "inverse": setResult( (1 / Number(result)).toString() ); break;
 
             case "add":
             case "sub":
-            case "mult":
+            case "mul":
             case "div":
-                if(firstOperand !== null && operation && !isSecondOperand) {
-                    const a = parseFloat(firstOperand);
-                    const b = parseFloat(result);
-                    const res = calculate(a, b, operation);
+                const b = Number(result);
+                if(firstOperand !== null && operation && !isSecondOperand) {                 
+                    const res = calculate(firstOperand, b, operation);
 
                     setResult(res.toString());
-                    setFirstOperand(res.toString());
+                    setFirstOperand(res);
                     setExpression(res + " " + title);
                 } 
                 else {
-                    setFirstOperand(result);
+                    setFirstOperand(b);
+                    setSecondOperand(null);
+                    lastOpAndOperandRef.current = null;
                     setExpression(result + " " + title);
                 }
-
                 setOperation(data);
                 setIsSecondOperand(true);
+                break;    
+            case "percent": 
+                const currentValue = Number(result);         
+                if (firstOperand !== null && operation) {
+                    let percentValue;
+                    if (operation === "add" || operation === "sub") {
+                        percentValue = (firstOperand * currentValue) / 100;
+                    } else {
+                        percentValue = currentValue / 100;
+                    }              
+                    setResult(percentValue.toString());
+                    setSecondOperand(percentValue);
+                    setIsSecondOperand(true);
+                    setExpression(firstOperand + " " + operationSymbol(operation) + " " + currentValue + "%");
+                } else{
+                    setResult("0");
+                    setExpression("0");
+                    setIsSecondOperand(true);
+                }
                 break;
+            
+            case "square": {
+                const val = Number(result);
+                const sq = val * val;
+                setResult(sq.toString());
+                setExpression("sqr(" + val +")")
+                setIsSecondOperand(false);
+                if (operation && isSecondOperand) setSecondOperand(sq);
+                else setFirstOperand(sq);
+                break;
+            }
+            case "sqrt": {
+                const val = Number(result);
+                if(val >=0) {
+                    const sqrtResult = Math.sqrt(val);
+                    setResult(sqrtResult.toString());
+                    setExpression("√("+ val + ")")
+                    setIsSecondOperand(false);
+                    if(operation && isSecondOperand) {
+                        setSecondOperand(sqrtResult)
+                    }
+                    else {
+                        setFirstOperand(sqrtResult);
+                    }
+                }
+                else {
+                    setResult("Invalid input");     //<- TODO в етом резалте надо заблокировать кнопки операций до ввода нового числа.
+                    setExpression(""); 
+                    setIsSecondOperand(true);
+                }
+                break;
+            }
             case "equal":
                 if(firstOperand && operation && secondOperand !== null) {
-                    const a = parseFloat(firstOperand);
-                    const b = parseFloat(secondOperand);
+                    const a = firstOperand;
+                    const b = secondOperand;
                     const res = calculate(a, b, operation);
 
                     setResult(res.toString());
@@ -89,7 +146,21 @@ export default function Calc() {
                     setFirstOperand(null);
                     setSecondOperand(null);
                     setOperation(null);
-                    setIsSecondOperand(false);
+                    setIsSecondOperand(true);
+                    lastOpAndOperandRef.current = { op: operation, val: b};   
+                }
+                else if(lastOpAndOperandRef.current) {
+                    const a = Number(result);
+                    const b = lastOpAndOperandRef.current.val;
+                    const op = lastOpAndOperandRef.current.op;
+                    const res = calculate(a, b, op);
+
+                    setResult(res.toString());
+                    setExpression(a + " " + operationSymbol(op) + " " + b + " =");
+                    setFirstOperand(null);
+                    setSecondOperand(null);
+                    setOperation(null);
+                    setIsSecondOperand(true);
                 }
                 break;
         }
@@ -105,13 +176,13 @@ export default function Calc() {
             setResult(title);
             setIsSecondOperand(false);
             if (operation) {
-                setSecondOperand(title);
+                setSecondOperand(Number(title));
             }
         } else {
             const newResult = result + title;
             setResult(newResult);
             if (operation) {
-                setSecondOperand(newResult);
+                setSecondOperand(Number(newResult));
             }
         } 
         
@@ -158,8 +229,8 @@ export default function Calc() {
                 </View>
 
                 <View style={styles.calcButtonRow}>
-                    <CalcButton title="%"                              action={onOperationPress}/>
-                    <CalcButton title="CE" textStyle={{ fontSize: 16}} action={onOperationPress}/>
+                    <CalcButton title="%"                              action={onOperationPress} data="percent"/>
+                    <CalcButton title="CE" textStyle={{ fontSize: 16}} action={onOperationPress} data="clearEntry"/>
                     <CalcButton title="C"  textStyle={{ fontSize: 16}} action={onOperationPress} data="clear"/>
                     <CalcButton title={"\u232B"}                       action={onOperationPress} data="backspace"/>
                 </View>
@@ -176,7 +247,7 @@ export default function Calc() {
                     <CalcButton title="7" type="digit" action={onDigitPress}/>
                     <CalcButton title="8" type="digit" action={onDigitPress}/>
                     <CalcButton title="9" type="digit" action={onDigitPress}/>
-                    <CalcButton title={"\u2715"} action={onOperationPress} data="mult"/>
+                    <CalcButton title={"\u2715"} action={onOperationPress} data="mul"/>
                 </View>
 
                 <View style={styles.calcButtonRow}>
@@ -210,7 +281,7 @@ export default function Calc() {
                 <View style={{display: "flex", flexDirection: "row", justifyContent: "center"}}>             
                     <View style={{flex: 2, display: "flex", flexDirection: "column"}}> 
                         <Text style={[styles.title, {margin: 0}]}>Калькулятор</Text>
-                        <Text style={styles.expression}>22 + 33 =</Text>
+                        <Text style={styles.expression}>{expression}</Text>
                     </View>
 
                     <Text style={[styles.result, {flex : 3}]}>{result}</Text>
@@ -226,7 +297,7 @@ export default function Calc() {
                 </View>
 
                 <View style={styles.calcButtonRow}>
-                    <CalcButton title="%"              action={onOperationPress}/>
+                    <CalcButton title="%"              action={onOperationPress} data="percent"/>
                     <CalcButton title="7" type="digit" action={onDigitPress}/>
                     <CalcButton title="8" type="digit" action={onDigitPress}/>
                     <CalcButton title="9" type="digit" action={onDigitPress}/>
@@ -240,7 +311,7 @@ export default function Calc() {
                     <CalcButton title="5" type="digit" action={onDigitPress}/>
                     <CalcButton title="6" type="digit" action={onDigitPress}/>
                     <CalcButton title={"\u2715"} action={onOperationPress} data="mul" />
-                    <CalcButton title="C"  textStyle={{ fontSize: 16}} action={onOperationPress} data="clear"/>                  
+                    <CalcButton title="C"  textStyle={{ fontSize: 16}} action={onOperationPress} data="clear"/>                
                 </View>
 
                 <View style={styles.calcButtonRow}>
@@ -258,7 +329,7 @@ export default function Calc() {
                     <CalcButton title="0" type="digit" action={onDigitPress}/>
                     <CalcButton title={"\uFF0E"}    type="digit"    action={onDotPress}/>
                     <CalcButton title={"\uFF0B"}    action={onOperationPress} data="add"/>
-                    <CalcButton title={"\uFF1D"}    type="equal"    action={onOperationPress}/>
+                    <CalcButton title={"\uFF1D"}    type="equal"    action={onOperationPress} data="equal"/>
                 </View>
                 
             </View>);
