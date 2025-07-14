@@ -12,7 +12,7 @@ const calculate = (a: number, b: number, op: string): number => {
         case "add": return a + b;
         case "sub": return a - b;
         case "mul": return a * b;
-        case "div": return b !== 0 ? a / b : NaN;     //change to Cannot divide by zero ?
+        case "div": return b !== 0 ? a / b : NaN;     //change NaN to Cannot divide by zero ?
         default: return b;
     }
 };

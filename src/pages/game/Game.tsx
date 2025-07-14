@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { Pressable, StyleSheet, Text, Touchable, TouchableWithoutFeedback, useWindowDimensions, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, Touchable, TouchableWithoutFeedback, useWindowDimensions, View } from "react-native";
 import { AppContext } from "../../shared/context/AppContext";
 
 
@@ -11,6 +11,11 @@ type EventData = {
 
 const distanceTreshold = 50;  // Порог срабатывания свайпу  (мин. растояние проведения)
 const timeTreshhold = 500;    // Порог срабатывания свайпе (макс. время проведения)
+
+let animValue = new Animated.Value(1);
+const opacityValues = Array.from({length: 16}, () => new Animated.Value(1));
+const scaleValues = Array.from({length: 16}, () => new Animated.Value(1));
+const scoreAnimValue = new Animated.Value(1);
 
 function tileBackground(tileValue: number) {
     return tileValue === 0 ? "#BDAFA2"
@@ -49,10 +54,58 @@ function tileForeground(tileValue: number) {
                            : "#FBF5F2";
 }
 
+const tilesCollapseAnimation = (collapsedIndexes: number[]) => {
+    if(collapsedIndexes.length > 0) {
+    Animated.parallel(collapsedIndexes.map(index => 
+        Animated.sequence([
+            Animated.timing(scaleValues[index], {
+                toValue: 1.2,
+                duration: 150,
+                useNativeDriver: true,
+            }),
+            Animated.timing(scaleValues[index], {
+                toValue: 1.0,
+                duration: 150,
+                useNativeDriver: true,
+            })
+        ])
+    )).start();
+}};
+
+const textSwipeDirectionAnimation = () => {
+    Animated.sequence([
+        Animated.timing(animValue, {
+            toValue: 0,
+            duration: 20,
+            useNativeDriver: true,
+        }),
+        Animated.timing(animValue, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+        })
+    ]).start();
+};
+
+const animateScoreChange = () => {
+    Animated.sequence([
+        Animated.timing(scoreAnimValue, {
+            toValue: 1.6,
+            duration: 100,
+            useNativeDriver: true,
+        }),
+        Animated.spring(scoreAnimValue, {
+            toValue: 1.0,
+            friction: 3,
+            tension: 100,
+            useNativeDriver: true,
+        })
+    ]).start();
+};
 
 export default function Game() {
-    const {navigate} = useContext(AppContext);
     const {width} = useWindowDimensions();
+    const [score, setScore] = useState(0);
     const [tiles, setTiles] = useState([
         0,    2,    4,     8,
         16,   32,   64,    128,
@@ -80,21 +133,57 @@ export default function Game() {
         if(dt < timeTreshhold){
             if(Math.abs(dx) > Math.abs(dy)) {   // horizontal
                 if(Math.abs(dx) > distanceTreshold) {
-                    if(dx > 0) {
-                        setText("Right");
+                    if(dx > 0) {               
+                        if( moveRight() ) {
+                            setText("Right - OK");
+                            spawnTile();
+                            setTiles([...tiles]);
+                            textSwipeDirectionAnimation();
+                        }
+                        else {
+                            setText("Right - NO MOVE");
+                            textSwipeDirectionAnimation();
+                        }                       
                     }
                     else {
-                        setText("Left");
+                        if( moveLeft() ) {
+                            setText("Left - OK");
+                            spawnTile();
+                            setTiles([...tiles]);
+                            textSwipeDirectionAnimation();
+                        }
+                        else {
+                            setText("Left - NO MOVE");
+                            textSwipeDirectionAnimation();
+                        }   
                     }
                 }
             }
             else {      // vertical
                 if(Math.abs(dy) > distanceTreshold) {
                     if(dy > 0) {
-                        setText("Down");
+                        if(moveDown()) {
+                            setText("Down - OK");
+                            spawnTile();
+                            setTiles([...tiles])
+                            textSwipeDirectionAnimation();
+                        }
+                        else {
+                            setText("Down - NO MOVE");
+                            textSwipeDirectionAnimation();
+                        }        
                     }
                     else {
-                        setText("Up");
+                        if(moveUp()) {
+                            setText("Up - OK");
+                            spawnTile();
+                            setTiles([...tiles])
+                            textSwipeDirectionAnimation();
+                        }
+                        else {
+                            setText("Up - NO MOVE");
+                        }
+                        
                     }
                 }
             }
@@ -110,17 +199,219 @@ export default function Game() {
         }
         const randomIndex = freeTiles[Math.floor(Math.random() * freeTiles.length)];
         tiles[randomIndex] = Math.random() < 0.9 ? 2 : 4;
-        setTiles(tiles);
+        Animated.sequence([
+            Animated.timing(opacityValues[randomIndex], {
+                toValue: 0,
+                duration: 20,
+                useNativeDriver: true,
+            }),
+            Animated.timing(opacityValues[randomIndex], {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            })
+        ]).start();
     };
 
     const newGame =  () => {
         for(let i = 0; i < tiles.length; i+=1) {
             tiles[i] = 0;
         }
+        setScore(0);
         spawnTile();
         spawnTile();
         setTiles([...tiles]);
     };
+
+    const moveRight = () => {
+        //  [2000]  ->  [0002]
+        //  [0204]  ->  [0024]
+        //  [2002]  -> (0022) -> [0004]
+        //  [0222]  -> (0204) -> [0024]
+        //  [2222]  -> (0404) -> [0044]
+        const N = 4;
+        let res = false;
+        let collapsedIndexes = [];
+
+        for(let r = 0; r < N; r += 1) {       // row index                     // [2400]
+
+            // 1. Move right
+            for(let i = 1; i < N; i += 1) {                                    //
+                for(let c = 0; c < N - 1; c += 1 ) {  // column index          //
+                    if( tiles[r*N + c] != 0 && tiles[r*N + c + 1] == 0 ) {     // [2040] [2004]
+                        tiles[r*N + c + 1] = tiles[r*N + c];                   // [0204] [0024]
+                        tiles[r*N + c] = 0;
+                        res = true;                                    //
+                    }
+                }
+            }
+
+            // 2. Collapse: from right to left
+            for(let c = N - 1; c > 0; c -= 1 ) {
+                if( tiles[r*N + c] != 0 && tiles[r*N + c - 1] == tiles[r*N + c] ) {
+                    tiles[r*N + c] *= 2;
+                    tiles[r*N + c - 1] = 0;
+                    setScore(score + tiles[r*N + c]);
+                    animateScoreChange();
+                    collapsedIndexes.push(r*N + c)
+                    res = true;
+                }
+            }
+
+            // 3. Move right after collapse
+            for(let i = 1; i < N; i += 1) {
+                for(let c = 0; c < N - 1; c += 1 ) {
+                    if( tiles[r*N + c] != 0 && tiles[r*N + c + 1] == 0 ) {
+                        let index = collapsedIndexes.indexOf(r*N + c);
+                        tiles[r*N + c + 1] = tiles[r*N + c];              
+                        tiles[r*N + c] = 0;  
+                        collapsedIndexes[index] = r*N + c + 1;                            
+                    }
+                }
+            }
+        }
+        tilesCollapseAnimation(collapsedIndexes);
+        return res;
+    };
+
+
+    const moveLeft = () => {
+        const N = 4;
+        let res = false;
+        let collapsedIndexes = [];
+
+        for(let r = 0; r < N; r += 1) {
+            // 1. Move Left
+            for(let i = 1; i < N; i += 1) {
+                for(let c = 0; c < N - 1; c += 1 ) {
+                    if( tiles[r*N + c + 1] != 0 && tiles[r*N + c] == 0 ) {
+                        tiles[r*N + c] = tiles[r*N + c + 1];
+                        tiles[r*N + c + 1] = 0;
+                        res = true;
+                    }
+                }
+            }
+
+            // 2. Collapse: from left to right
+            for(let c = 0; c < N -1 ; c += 1 ) {
+                if( tiles[r*N + c] != 0 && tiles[r*N + c + 1] == tiles[r*N + c] ) {
+                    tiles[r*N + c] *= 2;
+                    tiles[r*N + c + 1] = 0;
+                    setScore(score + tiles[r*N + c]);
+                    animateScoreChange();
+                    collapsedIndexes.push(r * N + c);
+                    res = true;
+                }
+            }
+            // 3. Move Left after collapse
+            for(let i = 1; i < N; i += 1) {
+                for(let c = 0; c < N - 1; c += 1 ) {
+                    if( tiles[r*N + c + 1] != 0 && tiles[r*N + c] == 0 ) {
+                        tiles[r*N + c] = tiles[r*N + c + 1];              
+                        tiles[r*N + c + 1] = 0;                              
+                    }
+                }
+            }
+        }
+        tilesCollapseAnimation(collapsedIndexes);
+        return res;
+    };
+
+    const moveDown = () => {
+        const N = 4;
+        let res = false;
+        let collapsedIndexes = [];
+
+        for(let c = 0; c < N; c += 1) {
+
+            // 1. Move Down
+            for(let i = 1; i < N; i += 1) {
+                for(let r = 0; r < N - 1; r += 1 ) {
+                    if( tiles[r*N + c] != 0 && tiles[r*N + c + N] == 0 ) {
+                        tiles[r*N + c + N] = tiles[r*N + c];
+                        tiles[r*N + c] = 0;
+                        res = true;
+                    }
+                }
+            }
+
+            // 2. Collapse: from top to bottom
+            for(let r = N - 1; r > 0; r -= 1 ) {
+                if( tiles[r*N + c] != 0 && tiles[r*N + c] == tiles[r*N + c - N] ) {
+                    tiles[r*N + c] *= 2;
+                    tiles[r*N + c - N] = 0;
+                    setScore(score + tiles[r*N + c]);
+                    animateScoreChange();
+                    collapsedIndexes.push(r*N + c)
+                    res = true;
+                }
+            }
+
+            // 3. Move down after collapse
+            for(let i = 1; i < N; i += 1) {
+                for(let r = 0; r < N - 1; r += 1 ) {
+                    if( tiles[r*N + c] != 0 && tiles[r*N + c + N] == 0 ) {
+                        let index = collapsedIndexes.indexOf(r*N + c);
+                        tiles[r*N + c + N] = tiles[r*N + c];              
+                        tiles[r*N + c] = 0;  
+                        collapsedIndexes[index] = r * N + c + N;                           
+                    }
+                }
+            }
+        }
+        tilesCollapseAnimation(collapsedIndexes);
+        return res;
+    };
+
+    const moveUp = () => {
+        const N = 4;
+        let res = false;
+        let collapsedIndexes = [];
+
+        for(let c = 0; c < N; c += 1) {       // column index
+
+            // 1. Move Up
+            for(let i = 1; i < N; i += 1) {
+                for(let r = N - 1; r > 0; r -= 1 ) {  // row index 
+                    if( tiles[r*N + c] != 0 && tiles[r*N + c - N] == 0 ) {
+                        tiles[r*N + c - N] = tiles[r*N + c];
+                        tiles[r*N + c] = 0;
+                        res = true;
+                    }
+                }
+            }
+
+            // 2. Collapse: from top to bottom
+            for(let r = 0; r < N - 1; r += 1 ) {
+                if( tiles[r*N + c] != 0 && tiles[r*N + c + N] == tiles[r*N + c] ) {
+                    tiles[r*N + c] *= 2;
+                    tiles[r*N + c + N] = 0;
+                    setScore(score + tiles[r*N + c]);
+                    animateScoreChange();
+                    collapsedIndexes.push(r*N + c)
+                    res = true;
+                }
+            }
+
+            // 3. Move up after collapse
+            for(let i = 1; i < N; i += 1) {
+                for(let r = N - 1; r > 0; r -= 1 ) {
+                    if( tiles[r*N + c] != 0 && tiles[r*N + c - N] == 0 ) {
+                        let index = collapsedIndexes.indexOf(r*N + c);
+                        tiles[r*N + c - N] = tiles[r*N + c];              
+                        tiles[r*N + c] = 0;  
+                        collapsedIndexes[index] = r*N + c - N;                           
+                    }
+                }
+            }
+        }
+        tilesCollapseAnimation(collapsedIndexes);
+        return res;
+    };
+
+
+
+
 
     return (
     <View style={styles.container}>
@@ -130,11 +421,12 @@ export default function Game() {
             </Text>
             <View style={styles.topBlockSub}>
                 <View style={styles.topBlockScores}>
-                    <View style={styles.topBlockScore}>
-                        <Text style={styles.topBlockScoreText} >SCORE </Text>
-                        <Text style={styles.topBlockScoreText}> 100500</Text>
-                    </View>
-
+                <View style={styles.topBlockScore}>
+                    <Text style={styles.topBlockScoreText} >SCORE </Text>
+                    <Animated.View style={{transform: [{scale: scoreAnimValue}]}}>
+                        <Text style={styles.topBlockScoreText}> {score}</Text>
+                    </Animated.View>
+                </View>
                     <View style={styles.topBlockScore}>
                         <Text style={styles.topBlockScoreText}>BEST </Text>
                         <Text style={styles.topBlockScoreText}> 100500</Text>
@@ -164,20 +456,29 @@ export default function Game() {
             })}> 
 
             <View style={[styles.field, {width: width * 0.95, height: width * 0.95}]}>
-                {tiles.map((tile, index )=> <Text key={index} 
-                style={[styles.tile, {
-                    backgroundColor: tileBackground(tile),
-                    color: tileForeground(tile),
-                    width: width * 0.201,
-                    height: width * 0.201,
-                    fontSize: tileFontSize(tile),
-                    fontWeight: 800,
-                    marginLeft: width * 0.022,
-                    marginTop: width * 0.022,
-                }]}>{tile}</Text>)}
+                {tiles.map((tile, index ) => <Animated.View key={index} style={{
+                    opacity: opacityValues[index],
+                    transform: [{scale: scaleValues[index]}]
+                }}>
+                <Text 
+                    style={[styles.tile, {
+                        backgroundColor: tileBackground(tile),
+                        color: tileForeground(tile),
+                        width: width * 0.201,
+                        height: width * 0.201,
+                        fontSize: tileFontSize(tile),
+                        fontWeight: 800,
+                        marginLeft: width * 0.022,
+                        marginTop: width * 0.022,
+                    }]}>{tile}</Text>
+                </Animated.View>)}
             </View>
         </TouchableWithoutFeedback>
-        <Text>{text}</Text>
+
+        <Animated.View style={{opacity: animValue}}>
+            <Text>{text}</Text>
+        </Animated.View>
+      
     </View>);
 }
 
