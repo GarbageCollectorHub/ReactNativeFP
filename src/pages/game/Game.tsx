@@ -1,6 +1,19 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, Touchable, TouchableWithoutFeedback, useWindowDimensions, View } from "react-native";
 import { AppContext } from "../../shared/context/AppContext";
+import Orientation from "react-native-orientation-locker";
+import RNFS from "react-native-fs";
+
+
+// Библиотека для управления и блокировки (lock) ориентации экрана.
+// npm i react-native-orientation-locker
+
+// Библиотека для работы с файловой системой в React Native (чтение, запись, удаление и пр.).
+// npm i react-native-fs
+
+
+
+
 
 
 type EventData = {
@@ -9,8 +22,16 @@ type EventData = {
     t: number,   // t - это timestamp (время)
 };
 
+type FieldState = {
+    tiles: Array<number>,
+    score: number,
+    bestScore: number,
+};
+
 const distanceTreshold = 50;  // Порог срабатывания свайпу  (мин. растояние проведения)
 const timeTreshhold = 500;    // Порог срабатывания свайпе (макс. время проведения)
+const bestScoreFileName = '/best.score';
+const N = 4;
 
 let animValue = new Animated.Value(1);
 const opacityValues = Array.from({length: 16}, () => new Animated.Value(1));
@@ -106,14 +127,66 @@ const animateScoreChange = () => {
 export default function Game() {
     const {width} = useWindowDimensions();
     const [score, setScore] = useState(0);
+    const [bestScore, setBestScore] = useState(0);
     const [tiles, setTiles] = useState([
         0,    2,    4,     8,
         16,   32,   64,    128,
         256,  512,  1024,  2048,
         4096, 8192, 16384, 32768
     ]); 
+    const [savedField, setSavedField] = useState(null as FieldState | null);
 
-    const tileFontSize = (tileValue: number) => {
+   
+    useEffect(() => {
+        loadBestScore();                                    // load score from file
+        Orientation.lockToPortrait();                       // lock orientation 
+        return () => Orientation.unlockAllOrientations();   // unlock on unmount
+    }, []);
+
+    useEffect( () => {
+        if(score > bestScore) {
+            setBestScore(score);
+        }
+    },[score]);
+
+    useEffect( () => {
+        saveBestScore();
+    },[bestScore]);
+
+
+    // save to file BestScore - RNFS write file (DocumentDirectoryPath - в root не нужно разрешение пользователя на доступ для сохранения файлов?)
+    const saveBestScore = () => {
+        const path = RNFS.DocumentDirectoryPath + bestScoreFileName;
+        return RNFS.writeFile(path, bestScore.toString(), 'utf8');
+    };
+    
+    // load from file (RNFS)
+    const loadBestScore = () => {
+        const path = RNFS.DocumentDirectoryPath + bestScoreFileName;
+        return RNFS.readFile(path, 'utf8')
+        .then(str => {
+            setBestScore(Number(str));
+        });
+    };
+
+    const saveTilesHistory = () => {
+        setSavedField({
+            tiles: [...tiles],
+            score: score,
+            bestScore: bestScore,
+        });
+    }
+
+    const undoTilesHistory = () => {
+        if(savedField === null) return;
+        setTiles(savedField!.tiles);
+        setScore(savedField!.score);
+        setBestScore(savedField!.bestScore);
+
+    };
+
+
+    const tileFontSize = (tileValue: number) => {        // <-- перенести? 
         return tileValue < 10 ? width * 0.12
         : tileValue < 100     ? width * 0.1
         : tileValue < 1000    ? width * 0.08
@@ -134,7 +207,9 @@ export default function Game() {
             if(Math.abs(dx) > Math.abs(dy)) {   // horizontal
                 if(Math.abs(dx) > distanceTreshold) {
                     if(dx > 0) {               
-                        if( moveRight() ) {
+                        if(canMoveRight()) {
+                            saveTilesHistory();
+                            moveRight();
                             setText("Right - OK");
                             spawnTile();
                             setTiles([...tiles]);
@@ -223,29 +298,39 @@ export default function Game() {
         setTiles([...tiles]);
     };
 
+
+    const canMoveRight = () => {
+        for(let r = 0; r < N; r += 1) {         // row index
+            for(let c = 1; c < N; c += 1 ) {    // column index
+                if( tiles[r*N + c - 1] != 0 && (
+                    tiles[r*N + c - 1] == tiles[r*N + c] || tiles[r*N + c] == 0 )
+                ) {
+                    return true;
+                }              
+            }
+        }
+        return false;
+    };
+    
     const moveRight = () => {
         //  [2000]  ->  [0002]
         //  [0204]  ->  [0024]
         //  [2002]  -> (0022) -> [0004]
         //  [0222]  -> (0204) -> [0024]
-        //  [2222]  -> (0404) -> [0044]
-        const N = 4;
-        let res = false;
+        //  [2222]  -> (0404) -> [0044]      
+        // let res = false;
         let collapsedIndexes = [];
 
         for(let r = 0; r < N; r += 1) {       // row index                     // [2400]
-
             // 1. Move right
             for(let i = 1; i < N; i += 1) {                                    //
                 for(let c = 0; c < N - 1; c += 1 ) {  // column index          //
                     if( tiles[r*N + c] != 0 && tiles[r*N + c + 1] == 0 ) {     // [2040] [2004]
                         tiles[r*N + c + 1] = tiles[r*N + c];                   // [0204] [0024]
                         tiles[r*N + c] = 0;
-                        res = true;                                    //
                     }
                 }
             }
-
             // 2. Collapse: from right to left
             for(let c = N - 1; c > 0; c -= 1 ) {
                 if( tiles[r*N + c] != 0 && tiles[r*N + c - 1] == tiles[r*N + c] ) {
@@ -254,10 +339,8 @@ export default function Game() {
                     setScore(score + tiles[r*N + c]);
                     animateScoreChange();
                     collapsedIndexes.push(r*N + c)
-                    res = true;
                 }
             }
-
             // 3. Move right after collapse
             for(let i = 1; i < N; i += 1) {
                 for(let c = 0; c < N - 1; c += 1 ) {
@@ -271,7 +354,6 @@ export default function Game() {
             }
         }
         tilesCollapseAnimation(collapsedIndexes);
-        return res;
     };
 
 
@@ -291,7 +373,6 @@ export default function Game() {
                     }
                 }
             }
-
             // 2. Collapse: from left to right
             for(let c = 0; c < N -1 ; c += 1 ) {
                 if( tiles[r*N + c] != 0 && tiles[r*N + c + 1] == tiles[r*N + c] ) {
@@ -323,7 +404,6 @@ export default function Game() {
         let collapsedIndexes = [];
 
         for(let c = 0; c < N; c += 1) {
-
             // 1. Move Down
             for(let i = 1; i < N; i += 1) {
                 for(let r = 0; r < N - 1; r += 1 ) {
@@ -334,7 +414,6 @@ export default function Game() {
                     }
                 }
             }
-
             // 2. Collapse: from top to bottom
             for(let r = N - 1; r > 0; r -= 1 ) {
                 if( tiles[r*N + c] != 0 && tiles[r*N + c] == tiles[r*N + c - N] ) {
@@ -346,7 +425,6 @@ export default function Game() {
                     res = true;
                 }
             }
-
             // 3. Move down after collapse
             for(let i = 1; i < N; i += 1) {
                 for(let r = 0; r < N - 1; r += 1 ) {
@@ -369,7 +447,6 @@ export default function Game() {
         let collapsedIndexes = [];
 
         for(let c = 0; c < N; c += 1) {       // column index
-
             // 1. Move Up
             for(let i = 1; i < N; i += 1) {
                 for(let r = N - 1; r > 0; r -= 1 ) {  // row index 
@@ -380,7 +457,6 @@ export default function Game() {
                     }
                 }
             }
-
             // 2. Collapse: from top to bottom
             for(let r = 0; r < N - 1; r += 1 ) {
                 if( tiles[r*N + c] != 0 && tiles[r*N + c + N] == tiles[r*N + c] ) {
@@ -392,7 +468,6 @@ export default function Game() {
                     res = true;
                 }
             }
-
             // 3. Move up after collapse
             for(let i = 1; i < N; i += 1) {
                 for(let r = N - 1; r > 0; r -= 1 ) {
@@ -429,13 +504,13 @@ export default function Game() {
                 </View>
                     <View style={styles.topBlockScore}>
                         <Text style={styles.topBlockScoreText}>BEST </Text>
-                        <Text style={styles.topBlockScoreText}> 100500</Text>
+                        <Text style={styles.topBlockScoreText}> {bestScore}</Text>
                     </View>
                 </View>
 
                 <View style={styles.topBlockButtons}>
                     <Pressable style={styles.topBlockButton} onPress={newGame}><Text style={styles.topBlockButtonText}>NEW</Text></Pressable>
-                    <Pressable style={styles.topBlockButton}><Text style={styles.topBlockButtonText}>UNDO</Text></Pressable>
+                    <Pressable style={styles.topBlockButton} onPress={undoTilesHistory}><Text style={styles.topBlockButtonText}>UNDO</Text></Pressable>
 
                 </View>
             </View>
