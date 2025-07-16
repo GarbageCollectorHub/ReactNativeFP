@@ -12,14 +12,20 @@ import RNFS from "react-native-fs";
 // npm i react-native-fs
 
 
+/* 
+TODO:
+- массив undo ходов для откада на N кол-во ходоов
+- Wow Win - continue/Game Over
+- sounds
 
+*/
 
 
 
 type EventData = {
     x: number,
     y: number,
-    t: number,   // t - это timestamp (время)
+    t: number,   // t - timestamp (время)
 };
 
 type FieldState = {
@@ -126,6 +132,7 @@ const animateScoreChange = () => {
 
 export default function Game() {
     const {width} = useWindowDimensions();
+    const [text, setText] = useState("Game");               // display swipe direction text (Right - OK, Left - NO MOVE)
     const [score, setScore] = useState(0);
     const [bestScore, setBestScore] = useState(0);
     const [tiles, setTiles] = useState([
@@ -154,13 +161,13 @@ export default function Game() {
     },[bestScore]);
 
 
-    // save to file BestScore - RNFS write file (DocumentDirectoryPath - в root не нужно разрешение пользователя на доступ для сохранения файлов?)
+    // save best score via RNFS (DocumentDirectoryPath is accessible without user permissions)
     const saveBestScore = () => {
         const path = RNFS.DocumentDirectoryPath + bestScoreFileName;
         return RNFS.writeFile(path, bestScore.toString(), 'utf8');
     };
     
-    // load from file (RNFS)
+    // load score from file (RNFS)
     const loadBestScore = () => {
         const path = RNFS.DocumentDirectoryPath + bestScoreFileName;
         return RNFS.readFile(path, 'utf8')
@@ -185,8 +192,7 @@ export default function Game() {
 
     };
 
-
-    const tileFontSize = (tileValue: number) => {        // <-- перенести? 
+    const tileFontSize = (tileValue: number) => { 
         return tileValue < 10 ? width * 0.12
         : tileValue < 100     ? width * 0.1
         : tileValue < 1000    ? width * 0.08
@@ -195,7 +201,6 @@ export default function Game() {
 ;    }
 
     // swipes - жести провведення з обмеженням минимальних вiдстаней та швидкостей
-    const [text, setText] = useState("Game");
     let startData: EventData|null = null;
     const detectSwipe = (finishData: EventData) => {
         if(startData === null) return;
@@ -221,7 +226,9 @@ export default function Game() {
                         }                       
                     }
                     else {
-                        if( moveLeft() ) {
+                        if(canMoveLeft()) {
+                            saveTilesHistory();
+                            moveLeft();
                             setText("Left - OK");
                             spawnTile();
                             setTiles([...tiles]);
@@ -237,7 +244,9 @@ export default function Game() {
             else {      // vertical
                 if(Math.abs(dy) > distanceTreshold) {
                     if(dy > 0) {
-                        if(moveDown()) {
+                        if(canMoveDown()) {
+                            saveTilesHistory();
+                            moveDown();
                             setText("Down - OK");
                             spawnTile();
                             setTiles([...tiles])
@@ -249,7 +258,9 @@ export default function Game() {
                         }        
                     }
                     else {
-                        if(moveUp()) {
+                        if(canMoveUp()) {
+                            saveTilesHistory();
+                            moveUp();
                             setText("Up - OK");
                             spawnTile();
                             setTiles([...tiles])
@@ -356,6 +367,18 @@ export default function Game() {
         tilesCollapseAnimation(collapsedIndexes);
     };
 
+    const canMoveLeft = () => {
+        for(let r = 0; r < N; r += 1) {
+            for(let c = 0; c < N - 1; c += 1) {
+                if(tiles[r * N + c + 1] !== 0 && (
+                    tiles[r * N + c] === 0 || tiles[r * N + c] === tiles[r * N + c + 1])
+                ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
 
     const moveLeft = () => {
         const N = 4;
@@ -396,6 +419,20 @@ export default function Game() {
         }
         tilesCollapseAnimation(collapsedIndexes);
         return res;
+    };
+
+
+    const canMoveDown = () => {
+        for(let c = 0; c < N; c += 1) {
+            for(let r = 0; r < N - 1; r += 1) {
+                if( tiles[r*N + c] != 0 && (
+                    tiles[r*N + c] == tiles[r*N + c + N] || tiles[r*N + c + N] == 0 )
+                ) {
+                    return true;
+                }              
+            }
+        }
+        return false;
     };
 
     const moveDown = () => {
@@ -441,6 +478,19 @@ export default function Game() {
         return res;
     };
 
+    const canMoveUp = () => {
+        for(let c = 0; c < N; c += 1) {
+            for(let r = 1; r < N; r += 1) {
+                if( tiles[r*N + c] != 0 && (
+                    tiles[r*N + c] == tiles[r*N + c - N] || tiles[r*N + c - N] == 0 )
+                ) {
+                    return true;
+                }              
+            }
+        }
+        return false;
+    };
+
     const moveUp = () => {
         const N = 4;
         let res = false;
@@ -483,7 +533,6 @@ export default function Game() {
         tilesCollapseAnimation(collapsedIndexes);
         return res;
     };
-
 
 
 
