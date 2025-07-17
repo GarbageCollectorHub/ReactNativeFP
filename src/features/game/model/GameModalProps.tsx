@@ -1,6 +1,5 @@
 
 
-
 export type GameModalProps = {
   visible: boolean;
   score: number;

@@ -17,7 +17,8 @@ import Sound from "react-native-sound";
 
 /* 
 TODO:
-
+    sound off btn
+    WinGame play sound ?
 */
 
 
@@ -178,7 +179,7 @@ export default function Game() {
 
     // Sounds
     useEffect(() => {
-        tilesSoundsRef.current = tilesSoundFiles.map(fileName => new Sound(fileName, ""));
+        tilesSoundsRef.current = tilesSoundFiles.map(fileName => new Sound(fileName, Sound.MAIN_BUNDLE));
 
         return () => { tilesSoundsRef.current.forEach(sound => sound.release());  };
     }, []);
@@ -274,7 +275,6 @@ export default function Game() {
             setText(direction + " - OK");
             spawnTile();
             setTiles([...tiles]);
-            // playRandomTileSound(tilesSoundsRef);
 
             if (checkForWin()) {
                 setShowWinModal(true);
