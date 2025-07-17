@@ -94,9 +94,9 @@ android {
         }
         release {
             storeFile file('2048-rn.keystore')
-            storePassword '890924'
+            storePassword 'qwerty'
             keyAlias 'rn-2048'
-            keyPassword '890924'
+            keyPassword 'qwerty'
         }
     }
     buildTypes {

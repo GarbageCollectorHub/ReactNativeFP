@@ -1,9 +1,10 @@
-import { useContext, useEffect, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, Touchable, TouchableWithoutFeedback, useWindowDimensions, View } from "react-native";
-import { AppContext } from "../../shared/context/AppContext";
+import { RefObject, useEffect, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, TouchableWithoutFeedback, useWindowDimensions, View } from "react-native";
 import Orientation from "react-native-orientation-locker";
 import RNFS from "react-native-fs";
-
+import WinModal from "../../features/game/ui/WinModal";
+import GameOverModal from "../../features/game/ui/GameOverModal";
+import Sound from "react-native-sound";
 
 // Библиотека для управления и блокировки (lock) ориентации экрана.
 // npm i react-native-orientation-locker
@@ -11,12 +12,11 @@ import RNFS from "react-native-fs";
 // Библиотека для работы с файловой системой в React Native (чтение, запись, удаление и пр.).
 // npm i react-native-fs
 
+// Sounds
+// npm install react-native-sound
 
 /* 
 TODO:
-- массив undo ходов для откада на N кол-во ходоов
-- Wow Win - continue/Game Over
-- sounds
 
 */
 
@@ -34,10 +34,22 @@ type FieldState = {
     bestScore: number,
 };
 
-const distanceTreshold = 50;  // Порог срабатывания свайпу  (мин. растояние проведения)
+
+// sound files located in: android\app\src\main\res\raw
+const tilesSoundFiles = [
+    //"tile_1.mp3",
+    "tile_2.wav",
+    "tile_3.wav",
+    "tile_4.mp3",
+];
+const buttonSoundFiles = ["click.mp3"];
+
+const distanceTreshold = 40;  // Порог срабатывания свайпу  (мин. растояние проведения)
 const timeTreshhold = 500;    // Порог срабатывания свайпе (макс. время проведения)
 const bestScoreFileName = '/best.score';
 const N = 4;
+const MAX_UNDO_HISTORY = 50;
+const WIN_TILE_VALUE = 2048;
 
 let animValue = new Animated.Value(1);
 const opacityValues = Array.from({length: 16}, () => new Animated.Value(1));
@@ -130,20 +142,53 @@ const animateScoreChange = () => {
     ]).start();
 };
 
+function playRandomTileSound(soundsRef: RefObject<Sound[]>) {
+  const sounds = soundsRef.current;
+  if (!sounds?.length) return;
+
+  const index = Math.floor(Math.random() * sounds.length);
+  const sound = sounds[index];
+  if (sound) {
+    sound.setCurrentTime(0);
+    sound.play();
+  }
+}
+
+
+
 export default function Game() {
     const {width} = useWindowDimensions();
     const [text, setText] = useState("Game");               // display swipe direction text (Right - OK, Left - NO MOVE)
     const [score, setScore] = useState(0);
     const [bestScore, setBestScore] = useState(0);
+    const [showWinModal, setShowWinModal] = useState(false);
+    const [hasWon, setHasWon] = useState(false);
+    const [gameOver, setGameOver] = useState(false);
+    const undoHistoryRef = useRef([] as FieldState[]);
+    const tilesSoundsRef = useRef<Sound[]>([]);
+    const buttonSoundsRef = useRef<Sound[]>([]);
+
+
     const [tiles, setTiles] = useState([
         0,    2,    4,     8,
         16,   32,   64,    128,
         256,  512,  1024,  2048,
         4096, 8192, 16384, 32768
     ]); 
-    const [savedField, setSavedField] = useState(null as FieldState | null);
 
-   
+    // Sounds
+    useEffect(() => {
+        tilesSoundsRef.current = tilesSoundFiles.map(fileName => new Sound(fileName, ""));
+
+        return () => { tilesSoundsRef.current.forEach(sound => sound.release());  };
+    }, []);
+
+    useEffect(() => {
+        buttonSoundsRef.current = buttonSoundFiles.map(fileName => new Sound(fileName, Sound.MAIN_BUNDLE));
+        return () => buttonSoundsRef.current.forEach(s => s.release());
+    }, []);
+
+    // Load Score
     useEffect(() => {
         loadBestScore();                                    // load score from file
         Orientation.lockToPortrait();                       // lock orientation 
@@ -177,28 +222,71 @@ export default function Game() {
     };
 
     const saveTilesHistory = () => {
-        setSavedField({
+        const newState = {
             tiles: [...tiles],
             score: score,
             bestScore: bestScore,
-        });
-    }
+        };
+        
+        undoHistoryRef.current = [...undoHistoryRef.current, newState].slice(-MAX_UNDO_HISTORY);   
+    };
 
     const undoTilesHistory = () => {
-        if(savedField === null) return;
-        setTiles(savedField!.tiles);
-        setScore(savedField!.score);
-        setBestScore(savedField!.bestScore);
+        if (undoHistoryRef.current.length === 0) return;
+        const lastState = undoHistoryRef.current[undoHistoryRef.current.length - 1];
+        undoHistoryRef.current = undoHistoryRef.current.slice(0, -1);
+        
+        setTiles([...lastState.tiles]);
+        setScore(lastState.score);
+        setBestScore(lastState.bestScore);
+    };
 
+    const checkForWin = () => {
+        return !hasWon && tiles.includes(WIN_TILE_VALUE);
+    };
+    
+    const checkGameOver = () => {
+        if (tiles.includes(0)) return false;
+        return !(canMoveRight() || canMoveLeft() || canMoveDown() || canMoveUp());
+    }
+
+    const continueGame = () => {
+        setShowWinModal(false);
+        setHasWon(true);
     };
 
     const tileFontSize = (tileValue: number) => { 
-        return tileValue < 10 ? width * 0.12
-        : tileValue < 100     ? width * 0.1
-        : tileValue < 1000    ? width * 0.08
-        : tileValue < 1000    ? width * 0.07
-                              : width * 0.06
-;    }
+        return tileValue < 10  ? width * 0.12
+        : tileValue < 100      ? width * 0.1
+        : tileValue < 1000     ? width * 0.08
+        : tileValue < 10000    ? width * 0.07
+                               : width * 0.06;
+    };
+
+    const handleMove = (
+        direction: "Right" | "Left" | "Down" | "Up",
+        canMove: () => boolean,
+        doMove: () => void,
+    ) => {
+        if(canMove()) {
+            saveTilesHistory();
+            doMove();
+            setText(direction + " - OK");
+            spawnTile();
+            setTiles([...tiles]);
+            // playRandomTileSound(tilesSoundsRef);
+
+            if (checkForWin()) {
+                setShowWinModal(true);
+            } else if (checkGameOver()) {
+                setGameOver(true);
+            }
+        }
+        else {
+            setText(direction + " - NO MOVE");
+        }
+        textSwipeDirectionAnimation();
+    }
 
     // swipes - жести провведення з обмеженням минимальних вiдстаней та швидкостей
     let startData: EventData|null = null;
@@ -211,65 +299,21 @@ export default function Game() {
         if(dt < timeTreshhold){
             if(Math.abs(dx) > Math.abs(dy)) {   // horizontal
                 if(Math.abs(dx) > distanceTreshold) {
-                    if(dx > 0) {               
-                        if(canMoveRight()) {
-                            saveTilesHistory();
-                            moveRight();
-                            setText("Right - OK");
-                            spawnTile();
-                            setTiles([...tiles]);
-                            textSwipeDirectionAnimation();
-                        }
-                        else {
-                            setText("Right - NO MOVE");
-                            textSwipeDirectionAnimation();
-                        }                       
+                    if(dx > 0) {     
+                        handleMove("Right", canMoveRight, moveRight);                                                  
                     }
                     else {
-                        if(canMoveLeft()) {
-                            saveTilesHistory();
-                            moveLeft();
-                            setText("Left - OK");
-                            spawnTile();
-                            setTiles([...tiles]);
-                            textSwipeDirectionAnimation();
-                        }
-                        else {
-                            setText("Left - NO MOVE");
-                            textSwipeDirectionAnimation();
-                        }   
+                        handleMove("Left", canMoveLeft, moveLeft);  
                     }
                 }
             }
             else {      // vertical
                 if(Math.abs(dy) > distanceTreshold) {
                     if(dy > 0) {
-                        if(canMoveDown()) {
-                            saveTilesHistory();
-                            moveDown();
-                            setText("Down - OK");
-                            spawnTile();
-                            setTiles([...tiles])
-                            textSwipeDirectionAnimation();
-                        }
-                        else {
-                            setText("Down - NO MOVE");
-                            textSwipeDirectionAnimation();
-                        }        
+                        handleMove("Down", canMoveDown, moveDown);          
                     }
                     else {
-                        if(canMoveUp()) {
-                            saveTilesHistory();
-                            moveUp();
-                            setText("Up - OK");
-                            spawnTile();
-                            setTiles([...tiles])
-                            textSwipeDirectionAnimation();
-                        }
-                        else {
-                            setText("Up - NO MOVE");
-                        }
-                        
+                        handleMove("Up", canMoveUp, moveUp);   
                     }
                 }
             }
@@ -299,16 +343,20 @@ export default function Game() {
         ]).start();
     };
 
-    const newGame =  () => {
+    const newGame = () => {
         for(let i = 0; i < tiles.length; i+=1) {
             tiles[i] = 0;
         }
         setScore(0);
         spawnTile();
         spawnTile();
+        
+        undoHistoryRef.current = [];
         setTiles([...tiles]);
+        setShowWinModal(false);
+        setGameOver(false);
+        setHasWon(false);
     };
-
 
     const canMoveRight = () => {
         for(let r = 0; r < N; r += 1) {         // row index
@@ -350,6 +398,7 @@ export default function Game() {
                     setScore(score + tiles[r*N + c]);
                     animateScoreChange();
                     collapsedIndexes.push(r*N + c)
+                    playRandomTileSound(tilesSoundsRef);
                 }
             }
             // 3. Move right after collapse
@@ -392,7 +441,6 @@ export default function Game() {
                     if( tiles[r*N + c + 1] != 0 && tiles[r*N + c] == 0 ) {
                         tiles[r*N + c] = tiles[r*N + c + 1];
                         tiles[r*N + c + 1] = 0;
-                        res = true;
                     }
                 }
             }
@@ -404,7 +452,7 @@ export default function Game() {
                     setScore(score + tiles[r*N + c]);
                     animateScoreChange();
                     collapsedIndexes.push(r * N + c);
-                    res = true;
+                    playRandomTileSound(tilesSoundsRef);
                 }
             }
             // 3. Move Left after collapse
@@ -418,9 +466,7 @@ export default function Game() {
             }
         }
         tilesCollapseAnimation(collapsedIndexes);
-        return res;
     };
-
 
     const canMoveDown = () => {
         for(let c = 0; c < N; c += 1) {
@@ -447,7 +493,6 @@ export default function Game() {
                     if( tiles[r*N + c] != 0 && tiles[r*N + c + N] == 0 ) {
                         tiles[r*N + c + N] = tiles[r*N + c];
                         tiles[r*N + c] = 0;
-                        res = true;
                     }
                 }
             }
@@ -459,7 +504,7 @@ export default function Game() {
                     setScore(score + tiles[r*N + c]);
                     animateScoreChange();
                     collapsedIndexes.push(r*N + c)
-                    res = true;
+                    playRandomTileSound(tilesSoundsRef);
                 }
             }
             // 3. Move down after collapse
@@ -475,7 +520,6 @@ export default function Game() {
             }
         }
         tilesCollapseAnimation(collapsedIndexes);
-        return res;
     };
 
     const canMoveUp = () => {
@@ -503,7 +547,6 @@ export default function Game() {
                     if( tiles[r*N + c] != 0 && tiles[r*N + c - N] == 0 ) {
                         tiles[r*N + c - N] = tiles[r*N + c];
                         tiles[r*N + c] = 0;
-                        res = true;
                     }
                 }
             }
@@ -515,7 +558,7 @@ export default function Game() {
                     setScore(score + tiles[r*N + c]);
                     animateScoreChange();
                     collapsedIndexes.push(r*N + c)
-                    res = true;
+                    playRandomTileSound(tilesSoundsRef);
                 }
             }
             // 3. Move up after collapse
@@ -531,7 +574,6 @@ export default function Game() {
             }
         }
         tilesCollapseAnimation(collapsedIndexes);
-        return res;
     };
 
 
@@ -558,15 +600,30 @@ export default function Game() {
                 </View>
 
                 <View style={styles.topBlockButtons}>
-                    <Pressable style={styles.topBlockButton} onPress={newGame}><Text style={styles.topBlockButtonText}>NEW</Text></Pressable>
-                    <Pressable style={styles.topBlockButton} onPress={undoTilesHistory}><Text style={styles.topBlockButtonText}>UNDO</Text></Pressable>
+                    <Pressable 
+                        style={styles.topBlockButton} 
+                        onPress={() => {
+                            playRandomTileSound(buttonSoundsRef);
+                            newGame();
+                        }}>
+                        <Text style={styles.topBlockButtonText}>NEW</Text>
+                    </Pressable>
+                    
+                    <Pressable 
+                        style={styles.topBlockButton} 
+                        onPress={() => {
+                            playRandomTileSound(buttonSoundsRef);
+                            undoTilesHistory();
+                        }}>
+                        <Text style={styles.topBlockButtonText}>UNDO {undoHistoryRef.current.length > 0 ? "(" + undoHistoryRef.current.length + ")" : ""}</Text>             
+                    </Pressable>
 
                 </View>
             </View>
         </View>
 
         <Text>
-            Join the numbers and get to the 2048 tile!
+            Join the numbers and get to the {WIN_TILE_VALUE} tile!
         </Text>
         <TouchableWithoutFeedback
             onPressIn={e => {startData = {
@@ -602,6 +659,22 @@ export default function Game() {
         <Animated.View style={{opacity: animValue}}>
             <Text>{text}</Text>
         </Animated.View>
+        
+    <WinModal
+        visible={showWinModal}
+        score={score}
+        onRestart={newGame}
+        onContinue={continueGame}
+        onClose={() => setShowWinModal(false)}
+    />
+
+    <GameOverModal
+        visible={gameOver}
+        score={score}
+        onRestart={newGame}
+        onClose={() => setGameOver(false)}
+    />
+
       
     </View>);
 }
@@ -654,7 +727,8 @@ const styles = StyleSheet.create({
   },
   topBlockScoreText: {
     color: "white",
-    textAlign: "center"
+    textAlign: "center",
+    fontWeight: 700,
   },
   topBlockButtons: {
     display: "flex",
@@ -671,7 +745,8 @@ const styles = StyleSheet.create({
   },
   topBlockButtonText: {
     color: "white",
-    textAlign: "center"
+    textAlign: "center",
+    fontWeight: 600,
   },
   field: {
     backgroundColor: "#A29383",
@@ -687,5 +762,66 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     textAlign: "center",
     verticalAlign: "middle",
-  }
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FCF7F0',
+    borderRadius: 15,
+    padding: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    minWidth: 300,
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 10,
+    color: '#333',
+  },
+  modalSubtext: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 25,
+    color: '#666',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    backgroundColor: '#E06849',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  modalButtonContinue: {
+    backgroundColor: '#8BBE3D',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 });

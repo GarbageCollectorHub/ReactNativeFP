@@ -2,12 +2,12 @@ import { StyleSheet, Text, TouchableOpacity } from "react-native";
 import { ButtonTypes } from "../model/ButtonTypes";
 
 export default function FirmButton({type, action, title}: {type?: string, action: Function, title: string}) {
-    if( typeof type == "undefined") {
+    if( typeof type === "undefined") {
         type = ButtonTypes.primary;
     }
 
     return <TouchableOpacity onPress={_ => action() } 
-            style={[styles.button, (type==ButtonTypes.primary ?  styles.buttonPrimary : styles.buttonSecondary)]}>
+            style={[styles.button, (type === ButtonTypes.primary ?  styles.buttonPrimary : styles.buttonSecondary)]}>
                 <Text style={styles.buttonText}>{title}</Text>
             </TouchableOpacity>
 }
