@@ -22,8 +22,51 @@ function App() {
   /* Навигация у мобильных приложениях 
   идея - ведение собственной истории перехода между "страничками"
   */
-  const [page, setPage] = useState("game");
+  const [page, setPage] = useState("auth");
+  const [user, setUser] = useState(null as string|null);
   const [history, setHistory] = useState([] as Array<string>);
+
+
+
+const request = (url:string , ini:any) => {
+    if(url.startsWith('/')) {
+      // url = "https://pv133od0.azurewebsites.net" + url;
+      // url = "https://localhost:7224" + url;
+
+      url = "https://garbagecollector.azurewebsites.net" + url;   
+    }
+    if(user != null) {
+      if(typeof ini == 'undefined') {
+        ini = {};
+      }
+      if(typeof ini.headers == 'undefined') {
+        ini.headers = {};
+      }
+      if(typeof ini.headers['Authorization'] == 'undefined') {
+        ini.headers['Authorization'] = "Bearer " + user; //.token;
+      }
+      ini.headers['Authentication-Control'] = "Mobile";
+    }
+ 
+    console.log('request', url, ini);
+    return new Promise((resolve, reject) => {
+      fetch(url, ini).then(r => r.json()).then(j => {
+        if (j.status.isOk) {
+          resolve(j.data);
+        }
+        else {
+          console.error(j);
+          reject(j);
+        }
+      });
+    })
+}
+
+
+
+
+
+
 
   const navigate = (href:string) => {   // додавання до исторii поточноiноi сторiнки
     if(href === page) {                 // та перехiд на нову сторiНку
@@ -62,7 +105,7 @@ function App() {
   return (<SafeAreaProvider>
     <SafeAreaView edges={['top', 'bottom']} style={styles.container}>
       {/* передемо navite   через контекст на все дочерние елементи */}
-      <AppContext.Provider value={{navigate}}>
+      <AppContext.Provider value={{navigate, user, setUser, request}}>
     
       <View style={styles.content}>
         {   page == "calc" ? <Calc />
