@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import Game from '../pages/game/Game';
 import { AppContext } from '../shared/context/AppContext';
 import Auth from '../pages/auth/Auth';
+import Rates from '../pages/rates/Rates';
 
 
 type PageInfo = {   //    /calc/scientific/hyper?arg=1234&operation=exp
@@ -110,6 +111,7 @@ const request = (url:string , ini:any) => {
       <View style={styles.content}>
         {   page == "calc" ? <Calc />
           : page == "game" ? <Game /> 
+          : page == "rates" ? <Rates /> 
           : <Auth />
         }
       </View>
@@ -127,6 +129,10 @@ const request = (url:string , ini:any) => {
           <Image source={require("../shared/assets/images/auth.png")} style={[styles.bottomNavImage, {width: 30}]}/>
         </Pressable>
         
+        <Pressable onPress={() => navigate("rates")} style={styles.bottomNavItem}>
+          <Image source={require("../shared/assets/images/coin25.png")} style={[styles.bottomNavImage, {width: 34}]}/>
+        </Pressable>
+
       </View>
 
       </AppContext.Provider>

@@ -2,6 +2,7 @@ import { StyleSheet, Text,Pressable, TouchableOpacity, View, TextStyle, Touchabl
 import CalcButton from "./components/CalcButton";
 import { useRef, useState } from "react";
 import MemoryButton from "./components/MemoryButton";
+import CalcModel from "./models/calcModel";
 
 
 
@@ -29,39 +30,80 @@ const operationSymbol = (op: string): string => {
 
 
 export default function Calc() {
-    const [result, setResult] = useState("0");
-    const [expression, setExpression] = useState("");
-    const [firstOperand, setFirstOperand] = useState<number | null>(null);
-    const [secondOperand, setSecondOperand] = useState<number | null>(null);
-    const [operation, setOperation] = useState<string | null>(null);
-    const [isSecondOperand, setIsSecondOperand] = useState(false);  // флаг true - ввод второго операнда
-    const lastOpAndOperandRef = useRef<{ op: string, val: number} | null>(null);
+    const [result, setResult] = useState(CalcModel.instance.result);
+    const [expression, setExpression] = useState(CalcModel.instance.expression);
+    const [firstOperand, setFirstOperand] = useState<number | null>(CalcModel.instance.firstOperand);
+    const [secondOperand, setSecondOperand] = useState<number | null>(CalcModel.instance.secondOperand);
+    const [operation, setOperation] = useState<string | null>(CalcModel.instance.operation);
+    const [isSecondOperand, setIsSecondOperand] = useState(CalcModel.instance.isSecondOperand);  // флаг true - ввод второго операнда
+    const lastOpAndOperandRef = useRef<{ op: string, val: number} | null>(CalcModel.instance.lastOpAndOperand);
 
     const {width, height} = useWindowDimensions();
+
+    // Обёртки, чтобы обновлять и стейт, и модель одновременно
+    const updateResult = (val: string) => {
+        setResult(val);
+        CalcModel.instance.result = val;
+    };
+
+    const updateExpression = (val: string | ((prev: string) => string)) => {
+        setExpression(prev => {
+            const newVal = typeof val === "function" ? val(prev) : val;
+            CalcModel.instance.expression = newVal;
+            return newVal;
+        });
+    };
+
+    const updateFirstOperand = (val: number | null) => {
+        setFirstOperand(val);
+        CalcModel.instance.firstOperand = val;
+    };
+
+    const updateSecondOperand = (val: number | null) => {
+        setSecondOperand(val);
+        CalcModel.instance.secondOperand = val;
+    };
+
+    const updateOperation = (val: string | null) => {
+        setOperation(val);
+        CalcModel.instance.operation = val;
+    };
+
+    const updateIsSecondOperand = (val: boolean) => {
+        setIsSecondOperand(val);
+        CalcModel.instance.isSecondOperand = val;
+    };
+
+    const updateLastOpAndOperand = (val: { op: string, val: number } | null) => {
+        lastOpAndOperandRef.current = val;
+        CalcModel.instance.lastOpAndOperand = val;
+    };
+
+
 
     const onOperationPress = (title:string, data?:string) => {
         switch(data) {
             case "backspace": if(result.length > 1) {
-                setResult(result.substring(0, result.length -1 ));
+                updateResult(result.substring(0, result.length -1 ));
             } 
             else  {
-                setResult("0"); 
+                updateResult("0"); 
             } break;
 
             case "clear": 
-                setResult("0"); 
-                setExpression(""); 
-                setFirstOperand(null);
-                setSecondOperand(null); 
-                setIsSecondOperand(false); 
-                setOperation(null); 
-                lastOpAndOperandRef.current = null;
+                updateResult("0"); 
+                updateExpression(""); 
+                updateFirstOperand(null);
+                updateSecondOperand(null); 
+                updateIsSecondOperand(false); 
+                updateOperation(null); 
+                updateLastOpAndOperand(null);
                 break;
             case "clearEntry":
-                setResult("0");
-                setIsSecondOperand(true);
+                updateResult("0");
+                updateIsSecondOperand(true);
                 break;
-            case "inverse": setResult( (1 / Number(result)).toString() ); break;
+            case "inverse": updateResult( (1 / Number(result)).toString() ); break;
 
             case "add":
             case "sub":
@@ -71,18 +113,18 @@ export default function Calc() {
                 if(firstOperand !== null && operation && !isSecondOperand) {                 
                     const res = calculate(firstOperand, b, operation);
 
-                    setResult(res.toString());
-                    setFirstOperand(res);
-                    setExpression(res + " " + title);
+                    updateResult(res.toString());
+                    updateFirstOperand(res);
+                    updateExpression(res + " " + title);
                 } 
                 else {
-                    setFirstOperand(b);
-                    setSecondOperand(null);
-                    lastOpAndOperandRef.current = null;
-                    setExpression(result + " " + title);
+                    updateFirstOperand(b);
+                    updateSecondOperand(null);
+                    updateLastOpAndOperand(null);
+                    updateExpression(result + " " + title);
                 }
-                setOperation(data);
-                setIsSecondOperand(true);
+                updateOperation(data);
+                updateIsSecondOperand(true);
                 break;    
             case "percent": 
                 const currentValue = Number(result);         
@@ -93,45 +135,45 @@ export default function Calc() {
                     } else {
                         percentValue = currentValue / 100;
                     }              
-                    setResult(percentValue.toString());
-                    setSecondOperand(percentValue);
-                    setIsSecondOperand(true);
-                    setExpression(firstOperand + " " + operationSymbol(operation) + " " + currentValue + "%");
+                    updateResult(percentValue.toString());
+                    updateSecondOperand(percentValue);
+                    updateIsSecondOperand(true);
+                    updateExpression(firstOperand + " " + operationSymbol(operation) + " " + currentValue + "%");
                 } else{
-                    setResult("0");
-                    setExpression("0");
-                    setIsSecondOperand(true);
+                    updateResult("0");
+                    updateExpression("0");
+                    updateIsSecondOperand(true);
                 }
                 break;
             
             case "square": {
                 const val = Number(result);
                 const sq = val * val;
-                setResult(sq.toString());
-                setExpression("sqr(" + val +")")
-                setIsSecondOperand(false);
-                if (operation && isSecondOperand) setSecondOperand(sq);
-                else setFirstOperand(sq);
+                updateResult(sq.toString());
+                updateExpression("sqr(" + val +")")
+                updateIsSecondOperand(false);
+                if (operation && isSecondOperand) updateSecondOperand(sq);
+                else updateFirstOperand(sq);
                 break;
             }
             case "sqrt": {
                 const val = Number(result);
                 if(val >=0) {
                     const sqrtResult = Math.sqrt(val);
-                    setResult(sqrtResult.toString());
-                    setExpression("√("+ val + ")")
-                    setIsSecondOperand(false);
+                    updateResult(sqrtResult.toString());
+                    updateExpression("√("+ val + ")")
+                    updateIsSecondOperand(false);
                     if(operation && isSecondOperand) {
-                        setSecondOperand(sqrtResult)
+                        updateSecondOperand(sqrtResult)
                     }
                     else {
-                        setFirstOperand(sqrtResult);
+                        updateFirstOperand(sqrtResult);
                     }
                 }
                 else {
-                    setResult("Invalid input");     //<- TODO в етом резалте надо заблокировать кнопки операций до ввода нового числа.
-                    setExpression(""); 
-                    setIsSecondOperand(true);
+                    updateResult("Invalid input");     //<- TODO в етом резалте надо заблокировать кнопки операций до ввода нового числа.
+                    updateExpression(""); 
+                    updateIsSecondOperand(true);
                 }
                 break;
             }
@@ -141,13 +183,13 @@ export default function Calc() {
                     const b = secondOperand;
                     const res = calculate(a, b, operation);
 
-                    setResult(res.toString());
-                    setExpression(firstOperand + " " + operationSymbol(operation) + " " + secondOperand + " =");
-                    setFirstOperand(null);
-                    setSecondOperand(null);
-                    setOperation(null);
-                    setIsSecondOperand(true);
-                    lastOpAndOperandRef.current = { op: operation, val: b};   
+                    updateResult(res.toString());
+                    updateExpression(firstOperand + " " + operationSymbol(operation) + " " + secondOperand + " =");
+                    updateFirstOperand(null);
+                    updateSecondOperand(null);
+                    updateOperation(null);
+                    updateIsSecondOperand(true);
+                    updateLastOpAndOperand({ op: operation, val: b });
                 }
                 else if(lastOpAndOperandRef.current) {
                     const a = Number(result);
@@ -155,12 +197,12 @@ export default function Calc() {
                     const op = lastOpAndOperandRef.current.op;
                     const res = calculate(a, b, op);
 
-                    setResult(res.toString());
-                    setExpression(a + " " + operationSymbol(op) + " " + b + " =");
-                    setFirstOperand(null);
-                    setSecondOperand(null);
-                    setOperation(null);
-                    setIsSecondOperand(true);
+                    updateResult(res.toString());
+                    updateExpression(a + " " + operationSymbol(op) + " " + b + " =");
+                    updateFirstOperand(null);
+                    updateSecondOperand(null);
+                    updateOperation(null);
+                    updateIsSecondOperand(true);
                 }
                 break;
         }
@@ -173,42 +215,42 @@ export default function Calc() {
             return;
         }
         if(result === "0" || isSecondOperand) {
-            setResult(title);
-            setIsSecondOperand(false);
+            updateResult(title);
+            updateIsSecondOperand(false);
             if (operation) {
-                setSecondOperand(Number(title));
+                updateSecondOperand(Number(title));
             }
         } else {
             const newResult = result + title;
-            setResult(newResult);
+            updateResult(newResult);
             if (operation) {
-                setSecondOperand(Number(newResult));
+                updateSecondOperand(Number(newResult));
             }
         } 
         
         if (expression.endsWith("=")) {
-            setExpression(title);
+            updateExpression(title);
         } else if (isSecondOperand && operation) {
-            setExpression(prev => prev + " " + title);
+            updateExpression(prev => prev + " " + title);
         } else {
-            setExpression(prev => prev + title);
+            updateExpression(prev => prev + title);
         }
     };
 
 
     const onDotPress = (title:string) => {
         if(!result.includes(".")) {
-            setResult(result + ".");
+            updateResult(result + ".");
         }
     };
 
 
     const onPmPress = (title:string) => {
         if(result.startsWith("-")) {
-            setResult(result.substring(1));
+            updateResult(result.substring(1));
         }
         else {
-            setResult("-" + result);
+            updateResult("-" + result);
         }
     };
 
