@@ -13,6 +13,10 @@ class RatesModel {
         return RatesModel.#instance;
     }
     rates: Array<NbuRate> = [];
+    shownRates: Array<NbuRate> = [];
+    searchText: string = "";
+    date: Date = new Date;
+    ratesByDate: { [key: string]: Array<NbuRate> } = {}   // кеширование курсов по датам
 }
 
 

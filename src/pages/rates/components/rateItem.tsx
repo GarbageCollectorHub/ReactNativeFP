@@ -38,6 +38,6 @@ const styles = StyleSheet.create({
     rateRate: {
         color: "#FCF7F0",
         flex: 2,
-        fontWeight: "bold",
+        // fontWeight: "bold",
     },
 });
