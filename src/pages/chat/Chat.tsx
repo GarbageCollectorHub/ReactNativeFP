@@ -8,19 +8,20 @@ export default function Chat() {
     const {navigate, user, showModal} = useContext(AppContext);
 
     useEffect(() => {
-        if(user == null) {
-            showModal({
-                title: "Сommunicator",
-                message: "Please log in to join the chat",
-                positiveButtonText: "Log in",
-                positiveButtonAction: () => navigate("auth"),
-                negativeButtonText: "Cancel",
-                negativeButtonAction: () => navigate("-1"),
-                closeButtonAction: () => navigate("-1"),
-            });
+      if(user == null) {
+        showModal({
+          title: "Сommunicator",
+          message: "Please log in to join the chat",
+          positiveButtonText: "Log in",
+          positiveButtonAction: () => navigate("auth"),
+          negativeButtonText: "Cancel",
+          negativeButtonAction: () => navigate("-1"),
+          closeButtonAction: () => navigate("-1"),
+        });
         }
     }, [user]);
 
+    
     return (
     <View>   
         <Pressable

@@ -1,67 +1,96 @@
-import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import ModalData from "../../shared/types/ModalData";
+import FirmButton from "../../features/buttons/ui/FirmButton";
+import { ButtonTypes } from "../../features/buttons/model/ButtonTypes";
 
 
 export default function ModalView ({isModalVisible, setModalVisible, modalData}: 
-    {isModalVisible: boolean, setModalVisible: (v:boolean) => void, modalData: ModalData}) 
-{
-    return <Modal
-            animationType="fade" //"slide"  //"none"
-            transparent={true}
-            visible={isModalVisible}
-            onRequestClose={() => {
-            //Alert.alert('Modal has been closed.');
-            if(!!modalData.closeButtonAction) {
+  {isModalVisible: boolean, setModalVisible: (v:boolean) => void, modalData: ModalData}) 
+  {
+    return (
+    <Modal
+      animationType="fade" //"slide"  //"none"
+      transparent={true}
+      visible={isModalVisible}
+      onRequestClose={() => {
+        if (modalData.closeButtonAction) {
+          modalData.closeButtonAction();
+        }
+        setModalVisible(false);
+      }}>
+      <View style={styles.centeredView}>
+        <View style={styles.modalView}>
+
+          <Pressable
+            onPress={() => {
+              if (modalData.closeButtonAction) {
                 modalData.closeButtonAction();
-            }
-            setModalVisible(false);
-            }}>
-    
-            <View style={styles.centeredView}>
-                <View style={styles.modalView}>
+              }
+              setModalVisible(false);
+            }}
+            style={styles.closeButton}
+          >
+            <Image
+              source={require("../../shared/assets/images/delete.png")}
+              style={styles.closeIcon}
+            />
+          </Pressable>
 
-                    <Pressable onPress={() => {
-                        if(!!modalData.closeButtonAction) {
-                            modalData.closeButtonAction();
-                        }
-                        setModalVisible(false);
-                        }}
-                        style={{position: "absolute", right: 10, top: 10}}>
-                        <Image source={require("../../shared/assets/images/delete.png")}
-                          style={{width: 25, height: 25}}/>
-                    </Pressable>
+          {!!modalData.title && (
+            <Text 
+              style={[styles.modalTitle, modalData.title.length > 40 && styles.modalTitleLong]}  
+              numberOfLines={5}
+            >
+              {modalData.title}
+            </Text>
+          )}
 
-                    <Text style={styles.modalText}>{modalData.title}</Text>
-                    <Text style={styles.modalText}>{modalData.message}</Text>
+          <ScrollView 
+            style={styles.messageContainer}
+            contentContainerStyle={styles.messageContent}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}>
+            <Text style={styles.modalMessage}>{modalData.message}</Text>
+          </ScrollView>
+          
 
-                    {!!modalData.positiveButtonText && <Pressable
-                        style={[styles.button, styles.buttonClose]}
-                        onPress={() => {
-                            if(!!modalData.positiveButtonAction) {
-                                modalData.positiveButtonAction();
-                            }
-                            setModalVisible(!isModalVisible)                 
-                        }}>
-                        <Text style={styles.textStyle}>{modalData.positiveButtonText}</Text>
-                    </Pressable>}
+          
+          <View style={styles.buttonsRow}>
+            {!!modalData.positiveButtonText && (
+              <View style={styles.buttonHalf}>
+                <FirmButton
+                  type={ButtonTypes.primary}
+                  title={modalData.positiveButtonText}
+                  action={() => {
+                    if (modalData.positiveButtonAction) {
+                      modalData.positiveButtonAction();
+                    }
+                    setModalVisible(!isModalVisible);
+                  }}
+                />
+              </View>
+            )}
 
-                    {!!modalData.negativeButtonText && <Pressable
-                        style={[styles.button, styles.buttonClose]}
-                        onPress={() => {
-                            if(!!modalData.negativeButtonAction) {
-                                modalData.negativeButtonAction();
-                            }
-                            setModalVisible(!isModalVisible)                 
-                        }}>
-                        <Text style={styles.textStyle}>{modalData.negativeButtonText}</Text>
-                    </Pressable>}
-
-                </View>
-            </View>
-        </Modal>
-};
-
-
+            {!!modalData.negativeButtonText && (
+              <View style={styles.buttonHalf}>
+                <FirmButton
+                  type={ButtonTypes.secondary}
+                  title={modalData.negativeButtonText}
+                  action={() => {
+                    if (modalData.negativeButtonAction) {
+                      modalData.negativeButtonAction();
+                    }
+                    setModalVisible(!isModalVisible);
+                  }}
+                />
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 
 const styles = StyleSheet.create({
@@ -85,24 +114,53 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  button: {
-    borderRadius: 20,
-    padding: 10,
-    elevation: 2,
+  closeIcon: {
+    width: 25, 
+    height: 25,
   },
-  buttonOpen: {
-    backgroundColor: '#2ca0c1ff',
-  },
-  buttonClose: {
-    backgroundColor: '#2196F3',
+  closeButton:{
+    position: "absolute", 
+    right: 10, 
+    top: 10,
   },
   textStyle: {
     color: 'white',
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  modalText: {
+  modalMessage:{
     marginBottom: 15,
-    textAlign: 'center',
+    textAlign: 'justify',
+    color: 'black',
+    fontSize: 16,
+    lineHeight: 20,
   },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'justify',
+    color: '#1c1c1cff',
+  },
+  modalTitleLong: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  messageContainer: {
+    maxHeight: 300,     // maxHeight
+  },
+  messageContent: {
+  },
+  buttonsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  buttonHalf: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  
+    
 });
