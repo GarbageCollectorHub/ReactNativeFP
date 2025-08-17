@@ -9,7 +9,6 @@ import DateTimePicker, { DateType, useDefaultStyles } from 'react-native-ui-date
 
 // npm install react-native-ui-datepicker
 
-
 export default function Rates() {
     const [rates, setRates] = useState(RatesModel.instance.rates);
     const [shownRates, setShownRates] = useState(RatesModel.instance.shownRates);

@@ -1,15 +1,21 @@
-/**
- * npx react-native run-android
- */
-
-import {  BackHandler, Image, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import {  BackHandler, Image, Pressable, StyleSheet, View } from 'react-native';
 import Calc from '../pages/calc/Calc';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState } from 'react';
 import Game from '../pages/game/Game';
 import { AppContext } from '../shared/context/AppContext';
 import Auth from '../pages/auth/Auth';
 import Rates from '../pages/rates/Rates';
+import Chat from '../pages/chat/Chat';
+import ModalData from '../shared/types/ModalData';
+import ModalView from './ui/ModalView';
+
+
+/*
+
+  npx react-native run-android
+
+*/
 
 
 type PageInfo = {   //    /calc/scientific/hyper?arg=1234&operation=exp
@@ -23,53 +29,59 @@ function App() {
   /* Навигация у мобильных приложениях 
   идея - ведение собственной истории перехода между "страничками"
   */
+
+
+
+
   const [page, setPage] = useState("auth");
   const [user, setUser] = useState(null as string|null);
   const [history, setHistory] = useState([] as Array<string>);
 
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [modalData, setModalData] = useState({message: ""} as ModalData);
 
 
-const request = (url:string , ini:any) => {
-    if(url.startsWith('/')) {
-      // url = "https://pv133od0.azurewebsites.net" + url;
-      // url = "https://localhost:7224" + url;
 
-      url = "https://garbagecollector.azurewebsites.net" + url;   
-    }
-    if(user != null) {
-      if(typeof ini == 'undefined') {
-        ini = {};
+  const request = (url:string , ini:any) => {
+      if(url.startsWith('/')) {
+        // url = "https://pv133od0.azurewebsites.net" + url;
+        // url = "https://localhost:7224" + url;
+
+        url = "https://garbagecollector.azurewebsites.net" + url;   
       }
-      if(typeof ini.headers == 'undefined') {
-        ini.headers = {};
-      }
-      if(typeof ini.headers['Authorization'] == 'undefined') {
-        ini.headers['Authorization'] = "Bearer " + user; //.token;
-      }
-      ini.headers['Authentication-Control'] = "Mobile";
-    }
- 
-    console.log('request', url, ini);
-    return new Promise((resolve, reject) => {
-      fetch(url, ini).then(r => r.json()).then(j => {
-        if (j.status.isOk) {
-          resolve(j.data);
+      if(user != null) {
+        if(typeof ini == 'undefined') {
+          ini = {};
         }
-        else {
-          console.error(j);
-          reject(j);
+        if(typeof ini.headers == 'undefined') {
+          ini.headers = {};
         }
-      });
-    })
-}
-
-
-
-
-
+        if(typeof ini.headers['Authorization'] == 'undefined') {
+          ini.headers['Authorization'] = "Bearer " + user; //.token;
+        }
+        ini.headers['Authentication-Control'] = "Mobile";
+      }
+  
+      console.log('request', url, ini);
+      return new Promise((resolve, reject) => {
+        fetch(url, ini).then(r => r.json()).then(j => {
+          if (j.status.isOk) {
+            resolve(j.data);
+          }
+          else {
+            console.error(j);
+            reject(j);
+          }
+        });
+      })
+  }
 
 
   const navigate = (href:string) => {   // додавання до исторii поточноiноi сторiнки
+    if(href === "-1") {
+      popRoute();
+      return;
+    }
     if(href === page) {                 // та перехiд на нову сторiНку
       return;
     }
@@ -91,6 +103,12 @@ const request = (url:string , ini:any) => {
     }
   };
 
+  const showModal = (data: ModalData) => {
+    setModalData(data);
+    setModalVisible(true);
+  };
+
+
   useEffect(() => {
     // перехоплюемо оброблення апартнои кнопки "назад"
     const listner = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -106,12 +124,19 @@ const request = (url:string , ini:any) => {
   return (<SafeAreaProvider>
     <SafeAreaView edges={['top', 'bottom']} style={styles.container}>
       {/* передемо navite   через контекст на все дочерние елементи */}
-      <AppContext.Provider value={{navigate, user, setUser, request}}>
+      <AppContext.Provider value={{navigate, user, setUser, request, showModal}}>
     
+      <ModalView 
+        isModalVisible={isModalVisible} 
+        setModalVisible={setModalVisible}
+        modalData={modalData} 
+      />
+
       <View style={styles.content}>
         {   page == "calc" ? <Calc />
           : page == "game" ? <Game /> 
-          : page == "rates" ? <Rates /> 
+          : page == "rates" ? <Rates />
+          : page == "chat" ? <Chat />  
           : <Auth />
         }
       </View>
@@ -131,6 +156,10 @@ const request = (url:string , ini:any) => {
         
         <Pressable onPress={() => navigate("rates")} style={styles.bottomNavItem}>
           <Image source={require("../shared/assets/images/coin25.png")} style={[styles.bottomNavImage, {width: 34}]}/>
+        </Pressable>
+
+        <Pressable onPress={() => navigate("chat")} style={styles.bottomNavItem}>
+          <Image source={require("../shared/assets/images/chat1.png")} style={[styles.bottomNavImage, {width: 30}]}/>
         </Pressable>
 
       </View>
@@ -172,7 +201,47 @@ const styles = StyleSheet.create({
   bottomNavImage: {
     height: 34,
 
-  }
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  button: {
+    borderRadius: 20,
+    padding: 10,
+    elevation: 2,
+  },
+  buttonOpen: {
+    backgroundColor: '#2ca0c1ff',
+  },
+  buttonClose: {
+    backgroundColor: '#2196F3',
+  },
+  textStyle: {
+    color: 'white',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: 'center',
+  },
 });
 
 export default App;

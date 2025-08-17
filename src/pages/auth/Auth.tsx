@@ -10,7 +10,7 @@ import RNFS from "react-native-fs";
 export default function Auth() {
     const [login, setLogin] = useState("dwa");
     const [password, setPassword] = useState("dwa");
-    const {request, user, setUser} = useContext(AppContext);
+    const {request, user, setUser, showModal} = useContext(AppContext);  // AppContext
     const [userName, setUserName] = useState<null|string>(null);
     const [rememberMe, setRememberMe] = useState(false);
 
@@ -29,7 +29,20 @@ export default function Auth() {
     }, [])
 
     const onEnterPress = () => {
-        console.log(login, password);
+        if(login.length === 0) {
+            showModal({
+                title: "Authorization",
+                message: "Enter login"
+            });
+            return;
+        }
+        if(password.length === 0) {
+            showModal({
+                title: "Authorization",
+                message: "Enter password"
+            });
+            return;
+        }
 
         request("/Cosmos/SignIn", {
             headers: {
@@ -70,9 +83,9 @@ export default function Auth() {
         }
     };
 
-
-
+    // 
     const isFormValid = () => login.trim().length > 1 && password.trim().length > 2;
+
 
     const anonView = () => <View>
         <View style={styles.textHeader}>
@@ -108,7 +121,7 @@ export default function Auth() {
 
         <FirmButton title="Enter" 
             type={isFormValid() ? ButtonTypes.primary : ButtonTypes.secondary}  
-            action={isFormValid() ? onEnterPress : () => {}} 
+            action={onEnterPress} 
         />   
     </View>;
 
@@ -116,6 +129,7 @@ export default function Auth() {
     const userView = () => <View>
         <Text>User Dashboard</Text>
         <Text>{userName ?? "NullUserName"}</Text>
+
         <FirmButton title="Request" 
             type={ButtonTypes.primary}  
             action={OnRequestPress} 
