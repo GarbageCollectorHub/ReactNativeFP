@@ -159,7 +159,7 @@ function App() {
         </Pressable>
 
         <Pressable onPress={() => navigate("chat")} style={styles.bottomNavItem}>
-          <Image source={require("../shared/assets/images/chat1.png")} style={[styles.bottomNavImage, {width: 30}]}/>
+          <Image source={require("../shared/assets/images/chat1.png")} style={[styles.bottomNavImage, {width: 34}]}/>
         </Pressable>
 
       </View>

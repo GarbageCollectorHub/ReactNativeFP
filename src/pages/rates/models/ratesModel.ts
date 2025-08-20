@@ -5,7 +5,7 @@ import NbuRate from "../types/NbuRate";
 // Для сохранения данных между повторными инициализациями компонента при переходе между Calc/Game/Rates
 
 class RatesModel {
-    static #instance: RatesModel | null;        // # в JS - синтаксис для создания приватных полей
+    static #instance: RatesModel | null;            // # в JS - синтаксис для создания приватных полей
 
     static get instance(): RatesModel {
         if(RatesModel.#instance == null) {
@@ -18,7 +18,7 @@ class RatesModel {
     shownRates: Array<NbuRate> = [];
     searchText: string = "";
     date: Date = new Date;
-    ratesByDate: { [key: string]: Array<NbuRate> } = {}   // кеширование курсов по датам
+    ratesByDate: { [key: string]: Array<NbuRate> } = {}         // кеширование курсов по датам
 }
 
 
