@@ -52,7 +52,6 @@ function displayDate(moment: string|Date): string {
     // Different year -> "10 July, 2024"
     return `${day} ${months[monthIndex]} ${year}`
 
-
     
     //return moment.toString();
 };

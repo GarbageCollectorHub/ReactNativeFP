@@ -9,6 +9,7 @@ import Rates from '../pages/rates/Rates';
 import Chat from '../pages/chat/Chat';
 import ModalData from '../shared/types/ModalData';
 import ModalView from './ui/ModalView';
+import User from '../shared/types/User';
 
 
 /*
@@ -34,7 +35,7 @@ function App() {
 
 
   const [page, setPage] = useState("auth");
-  const [user, setUser] = useState(null as string|null);
+  const [user, setUser] = useState(null as User|null);
   const [history, setHistory] = useState([] as Array<string>);
 
   const [isModalVisible, setModalVisible] = useState(false);

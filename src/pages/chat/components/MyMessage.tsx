@@ -12,7 +12,7 @@ export default function MyMessage({message, onPress}:{message:ChatMessage, onPre
         style={styles.container}
         onPress={() => onPress(message)}>
         <Text>{displayDate(message.moment)}</Text>
-        <Text>{message.author}</Text>
+        {/* <Text>{message.author}</Text> */}
         <Text>{message.text}</Text>
     </TouchableOpacity>
     );
@@ -23,13 +23,13 @@ export default function MyMessage({message, onPress}:{message:ChatMessage, onPre
 const styles = StyleSheet.create({
     container: {
         backgroundColor: "#cccccc",
-        borderBottomLeftRadius: 10,
-        borderBottomRightRadius: 0,
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 10,
         borderTopLeftRadius: 10,
         borderTopRightRadius: 10,
-        marginHorizontal: 10,
-        marginLeft: 80,
-        marginRight: 8,
+        marginVertical: 5,
+        marginLeft: 8,
+        marginRight: 80,
         padding: 10,
         elevation: 2,
     },
@@ -41,5 +41,3 @@ const styles = StyleSheet.create({
     },
      
 });
-
-

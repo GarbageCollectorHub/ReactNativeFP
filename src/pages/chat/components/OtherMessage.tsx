@@ -24,13 +24,13 @@ export default function OtherMessage({message, onPress}:{message:ChatMessage, on
 const styles = StyleSheet.create({
     container: {
         backgroundColor: "#ccccdd",
-        borderBottomLeftRadius: 0,
-        borderBottomRightRadius: 10,
+        borderBottomLeftRadius: 10,
+        borderBottomRightRadius: 0,
         borderTopLeftRadius: 10,
         borderTopRightRadius: 10,
-        marginVertical: 10,
-        marginLeft: 8,
-        marginRight: 80,
+        marginVertical: 5,
+        marginLeft: 80,
+        marginRight: 8,
         padding: 10,
         elevation: 2,
     },
@@ -42,5 +42,3 @@ const styles = StyleSheet.create({
     },
      
 });
-
-

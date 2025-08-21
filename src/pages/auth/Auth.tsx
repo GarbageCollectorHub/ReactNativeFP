@@ -18,10 +18,7 @@ export default function Auth() {
 
 
     useEffect(() => {
-        // console.log("test log", {user});
-        setUserName(user == null ? null
-            : JSON.parse(Buffer.from(user.split('.')[1], 'base64').toString('utf-8')).nam);
-            
+        setUserName(user == null ? null : user.nam);        
     }, [user]);
 
     useEffect(() => {
@@ -48,9 +45,13 @@ export default function Auth() {
             headers: {
                 'Authorization': 'Basic ' +  Buffer.from(`${login}:${password}`, 'utf-8').toString('base64')
             }
-        }).then((token) => {
-            setUser(token);
-            if(rememberMe) saveAuthToken(token);
+        }).then((jwt) => {
+            setUser(
+                JSON.parse(
+                    Buffer.from(jwt.split('.')[1], 'base64').toString('utf8')
+                )
+            );
+            if(rememberMe) saveAuthToken(jwt);
         });
     };
 
@@ -65,7 +66,9 @@ export default function Auth() {
         const exist = await RNFS.exists(path);
         if(exist) {
             const token = await RNFS.readFile(path, 'utf8');
-            setUser(token);
+            setUser(JSON.parse(
+                Buffer.from(token.split('.')[1], 'base64').toString('utf8')
+            ));
         }
     };
 
@@ -149,13 +152,13 @@ export default function Auth() {
 const styles = StyleSheet.create({
     textInput: {
         borderColor: "#888",
-        borderWidth: 2,
+        borderWidth: 1,
         margin: 10,
     },
     textInputContainer: {
         backgroundColor: "#555",
         borderColor: "#888",
-        borderWidth: 2,
+        borderWidth: 1,
         borderRadius: 5,
         margin: 10,
     },
