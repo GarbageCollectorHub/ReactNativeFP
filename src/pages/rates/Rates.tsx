@@ -93,6 +93,16 @@ export default function Rates() {
 
 
     return <View style={styles.container}>
+
+        {isLoading && <View style={styles.loader}>
+            <ActivityIndicator 
+                size="large" 
+                color="#007AFF" 
+                style={{margin:"auto", 
+                transform: [{scale: 2}]}}
+            />
+        </View>}
+
         <View style={styles.searchBar}>
             <TouchableOpacity style={styles.searchButton}>
                 <Image source={require("../../shared/assets/images/Search_Icon.png")}
@@ -119,12 +129,13 @@ export default function Rates() {
         </View>
 
 
-        {isLoading && (
+        {/* {isLoading && (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
+                <ActivityIndicator size="large" color="#007AFF" style={{margin:"auto", transform: [{scale: 2}]}}
+                 />
                 <Text style={styles.loadingText}>Loading currency rates...</Text>
             </View>
-        )}
+        )} */}
 
         <View style={[styles.calendarContainer, {display: isCalendarVisible ? "flex" : "none" }]}>
             <DateTimePicker
@@ -163,6 +174,15 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         height: "100%",
         
+    },
+    loader: {
+        position: "absolute",
+        left: 10,
+        top: 10,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "#353535b9",
+        zIndex: 2,
     },
     ratesList: {
         flex: 1,
@@ -206,16 +226,17 @@ const styles = StyleSheet.create({
     loadingContainer: {
         padding: 20,
         alignItems: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.1)",
+        backgroundColor: "#2e2e2eff",
         borderRadius: 10,
         marginVertical: 10,
     },
-    loadingText: {
-        color: "#888",
-        fontSize: 16,
-        marginTop: 10,
-        textAlign: "center",
-    },
+    // loadingText: {
+    //     color: "#888",
+    //     fontSize: 16,
+    //     marginTop: 10,
+    //     // textAlign: "center",
+    //     margin:"auto"
+    // },
     calendarContainer:{
         backgroundColor: "#d9d8d8ff",
         borderRadius: 12,

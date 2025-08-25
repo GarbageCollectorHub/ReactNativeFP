@@ -19,6 +19,7 @@ export default function Chat() {
   const chatUrl = "https://chat.momentfor.fun/"
 
   useEffect(() => {
+    let handle: NodeJS.Timeout|null = null;
     if(user == null) {
       showModal({
         title: "Сommunicator",
@@ -29,6 +30,13 @@ export default function Chat() {
         negativeButtonAction: () => navigate("-1"),   // "-1" вернет на предыдущую страницу через history (в App navigate, poproute)    
         closeButtonAction: () => navigate("-1"),
       });
+      }
+      else {
+        handle = setInterval(updateMessages, 1000);
+      }
+      
+      return () => {
+        if(handle != null) clearInterval(handle);
       }
   }, [user]);
 
@@ -111,34 +119,35 @@ export default function Chat() {
   };
   
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container} >
-      <View style={styles.chat}>
-        <ScrollView
-          ref={scrollViewRef}
-          showsVerticalScrollIndicator={true}
-          nestedScrollEnabled={true}
-          onContentSizeChange={() =>
-            scrollViewRef.current?.scrollToEnd({ animated: true })
-          }
-        >
-          {messages.map((m, i) => m.author === user?.nam
-            ? <MyMessage key={m.id} message={m} onPress={messagePressed} /> 
-            : <OtherMessage key={m.id} message={m} onPress={messagePressed} />)}       
-        </ScrollView>
-      </View>
+    user === null ? <View></View> : <KeyboardAvoidingView   
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container} >
+        <View style={styles.chat}>
+          <ScrollView             // <-- тут FlatList лучше
+            ref={scrollViewRef}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+            onContentSizeChange={() =>
+              scrollViewRef.current?.scrollToEnd({ animated: true })
+            }
+          >
+            {messages.map((m, i) => m.author === user?.nam
+              ? <MyMessage key={m.id} message={m} onPress={messagePressed} /> 
+              : <OtherMessage key={m.id} message={m} onPress={messagePressed} />)}       
+          </ScrollView>
+        </View>
 
-      <View style={styles.inputRow}>
-        <TextInput style={styles.textInput}
-                value={messageText}
-                onChangeText={setMessageText}
-                multiline={true}
-                numberOfLines={4}/>
-        <TouchableOpacity style={styles.sendButton} onPress={onSendPressed}>
-          <Text>&#10148;</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={{height:10}}></View>      
-    </KeyboardAvoidingView>
+        <View style={styles.inputRow}>
+          <TextInput style={styles.textInput}
+                  value={messageText}
+                  onChangeText={setMessageText}
+                  multiline={true}
+                  numberOfLines={4}/>
+          <TouchableOpacity style={styles.sendButton} onPress={onSendPressed}>
+            <Text>&#10148;</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{height:10}}></View>      
+      </KeyboardAvoidingView>
 
   );
 };

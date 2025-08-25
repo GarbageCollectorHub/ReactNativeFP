@@ -13,6 +13,7 @@ export default function Auth() {
     const {request, user, setUser, showModal} = useContext(AppContext);  // AppContext
     const [userName, setUserName] = useState<null|string>(null);
     const [rememberMe, setRememberMe] = useState(false);
+    const [isLoading, setLoading] = useState(false);
 
     const tokenFileName = "auth_token"
 
@@ -40,7 +41,7 @@ export default function Auth() {
             });
             return;
         }
-
+        setLoading(true);
         request("/Cosmos/SignIn", {
             headers: {
                 'Authorization': 'Basic ' +  Buffer.from(`${login}:${password}`, 'utf-8').toString('base64')
@@ -52,7 +53,15 @@ export default function Auth() {
                 )
             );
             if(rememberMe) saveAuthToken(jwt);
-        });
+        })
+        .catch(err => {
+            console.error(err);
+            showModal({
+            title: "Authorization",
+            message: "Request error. Please try again later",
+          });
+        })
+        .finally(() => setLoading(false));
     };
 
     const saveAuthToken = async (user: string | null) => {
@@ -122,9 +131,9 @@ export default function Auth() {
 
 
 
-        <FirmButton title="Enter" 
-            type={isFormValid() ? ButtonTypes.primary : ButtonTypes.secondary}  
-            action={onEnterPress} 
+        <FirmButton title={isLoading ? "Loading..." : "Enter"} 
+            type={isFormValid() && !isLoading ? ButtonTypes.primary : ButtonTypes.secondary}  
+            action={ isLoading ? ()=>{} : onEnterPress} 
         />   
     </View>;
 
